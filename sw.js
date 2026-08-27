@@ -1,10 +1,14 @@
 /* Rechnungs-Tracker – Service Worker
    Alle Pfade sind relativ zum Scope, damit die App sowohl unter
-   https://user.github.io/repo/ als auch unter http://127.0.0.1:8765/ laeuft. */
+   https://user.github.io/repo/ als auch unter http://127.0.0.1:8765/ laeuft.
 
-const VERSION    = 'v1';
-const SHELL      = 'rt-shell-' + VERSION;   // App-Huelle, bei Update ersetzt
-const RUNTIME    = 'rt-runtime-' + VERSION; // grosse Libs, lazy gecached
+   VERSION bei jeder Aenderung an den App-Dateien hochzaehlen.
+   Ohne neue VERSION bleibt der alte Cache aktiv und Geraete bekommen
+   das Update nicht zu sehen. */
+
+const VERSION = 'v2';
+const SHELL   = 'rt-shell-'   + VERSION;   // App-Huelle, bei Update ersetzt
+const RUNTIME = 'rt-runtime-' + VERSION;   // grosse Libs, lazy gecached
 
 // Klein und immer noetig -> sofort cachen.
 const SHELL_FILES = [
@@ -17,15 +21,16 @@ const SHELL_FILES = [
   './vendor/tesseract/tesseract.min.js'
 ];
 
-// 17 MB Tesseract/pdf.js NICHT beim Install ziehen – das wuerde die
-// Installation auf Mobilfunk minutenlang blockieren. Stattdessen beim
-// ersten echten Gebrauch cachen (danach dauerhaft offline verfuegbar).
+// Die 17 MB Tesseract/pdf.js werden NICHT beim Install gezogen – das wuerde
+// die Installation auf Mobilfunk minutenlang blockieren. Sie landen beim
+// ersten echten Gebrauch im Cache und sind danach dauerhaft offline da.
 
 self.addEventListener('install', event => {
+  // Bewusst KEIN skipWaiting(): der neue Worker wartet, die App zeigt
+  // stattdessen unten das Update-Banner. Erst der Tap darauf schickt
+  // 'skipWaiting' und loest den Wechsel samt Reload aus.
   event.waitUntil(
-    caches.open(SHELL)
-      .then(cache => cache.addAll(SHELL_FILES))
-      .then(() => self.skipWaiting())
+    caches.open(SHELL).then(cache => cache.addAll(SHELL_FILES))
   );
 });
 

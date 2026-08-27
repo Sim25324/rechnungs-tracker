@@ -15,202 +15,367 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
 <style>
-  :root{
-    color-scheme: light;
-    --blue:#2563eb; --blue-l:#eff6ff;
-    --teal:#0891b2; --teal-l:#ecfeff;
-    --amber:#d97706; --amber-l:#fffbeb;
-    --violet:#7c3aed; --violet-l:#f5f3ff;
-    --green:#16a34a; --green-l:#f0fdf4;
-    --ink:#0f172a; --sub:#475569; --line:#e2e8f0; --bg:#f8fafc;
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0; font-family: Arial, Helvetica, sans-serif; background:var(--bg); color:var(--ink);
-  }
-  header{
-    background:#fff; border-bottom:1px solid var(--line); padding:16px 22px;
-    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
-  }
-  header h1{ font-size:19px; margin:0 0 3px; }
-  header p{ margin:0; color:var(--sub); font-size:12.5px; }
-  .saved-indicator{ font-size:11px; color:#16a34a; margin-top:5px; font-weight:600; }
-  .actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  button{
-    font-family:inherit; font-size:13px; border-radius:7px; border:1px solid var(--line);
-    background:#fff; color:var(--ink); padding:8px 13px; cursor:pointer; font-weight:600;
-  }
+/* =======================================================================
+   Mobile first. Alle Basisregeln gelten fuer das Handy;
+   groessere Screens bekommen Erweiterungen ueber min-width-Queries.
+   ======================================================================= */
+:root{
+  color-scheme: light;
+  --blue:#2563eb; --blue-l:#eff6ff;
+  --teal:#0891b2; --teal-l:#ecfeff;
+  --amber:#d97706; --amber-l:#fffbeb;
+  --violet:#7c3aed; --violet-l:#f5f3ff;
+  --green:#16a34a; --green-l:#f0fdf4;
+  --ink:#0f172a; --sub:#475569; --line:#e2e8f0; --bg:#f1f5f9;
+  --tap:44px;                       /* Mindestgroesse fuer Touch-Ziele */
+  --sat: env(safe-area-inset-top,0px);
+  --sab: env(safe-area-inset-bottom,0px);
+  --sal: env(safe-area-inset-left,0px);
+  --sar: env(safe-area-inset-right,0px);
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+html{ -webkit-text-size-adjust:100%; }
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  font-size:15px; line-height:1.45;
+  overscroll-behavior-y:none;
+}
+body.locked{ overflow:hidden; }
+
+button, .btn{
+  font-family:inherit; font-size:15px; font-weight:600;
+  min-height:var(--tap); padding:10px 16px;
+  border-radius:10px; border:1px solid var(--line);
+  background:#fff; color:var(--ink);
+  cursor:pointer; touch-action:manipulation;
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+}
+button:active{ transform:scale(.97); }
+button.primary{ background:var(--blue); color:#fff; border-color:var(--blue); }
+button.danger{ background:#fff; color:#dc2626; border-color:#fecaca; }
+button.ghost{ border-color:transparent; background:transparent; color:var(--sub); }
+button:disabled{ opacity:.5; }
+/* Hover-Effekte nur dort, wo es echten Hover gibt – auf Touch bleiben sie sonst kleben */
+@media (hover:hover) and (pointer:fine){
   button:hover{ background:#f1f5f9; }
-  button.primary{ background:var(--blue); color:#fff; border-color:var(--blue); }
   button.primary:hover{ background:#1d4ed8; }
-  button.danger{ background:#fff; color:#dc2626; border-color:#fecaca; }
   button.danger:hover{ background:#fef2f2; }
-  button.ghost{ border:none; background:transparent; color:var(--sub); }
+}
 
-  .badge-offline{
-    font-size:10.5px; color:#16a34a; background:#f0fdf4; border:1px solid #bbf7d0;
-    border-radius:20px; padding:3px 10px; font-weight:700; white-space:nowrap;
-  }
+/* ---------- Kopfzeile ---------- */
+.topbar{
+  position:sticky; top:0; z-index:30;
+  background:#fff; border-bottom:1px solid var(--line);
+  padding:calc(10px + var(--sat)) calc(12px + var(--sar)) 10px calc(12px + var(--sal));
+  display:flex; align-items:center; gap:8px;
+}
+.topbar h1{
+  font-size:16px; margin:0; flex:1; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.saved-indicator{ font-size:11px; color:var(--green); font-weight:600; white-space:nowrap; }
+.icon-btn{
+  width:var(--tap); height:var(--tap); min-height:var(--tap);
+  padding:0; border-radius:50%; border:1px solid var(--line);
+  background:#fff; font-size:17px; flex:none;
+}
 
-  .stats{
-    display:flex; gap:10px; padding:12px 22px 0; flex-wrap:wrap;
-  }
-  .stat{
-    background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 14px; min-width:130px;
-  }
-  .stat .n{ font-size:17px; font-weight:800; }
-  .stat .l{ font-size:11px; color:var(--sub); }
+/* ---------- Info-Buttons und Popover ---------- */
+.info-btn{
+  width:26px; height:26px; min-height:26px; padding:0; flex:none;
+  border-radius:50%; border:1px solid #bfdbfe; background:var(--blue-l);
+  color:var(--blue); font-size:13px; font-weight:800; line-height:1;
+}
+.popover{
+  position:fixed; z-index:80; max-width:min(320px, calc(100vw - 24px));
+  background:#0f172a; color:#e2e8f0; font-size:13px; line-height:1.5;
+  border-radius:10px; padding:12px 14px; box-shadow:0 12px 32px rgba(0,0,0,.3);
+  display:none;
+}
+.popover.open{ display:block; }
+.popover b{ color:#fff; }
 
+/* ---------- Kennzahlen ---------- */
+.stats{
+  display:grid; grid-template-columns:1fr 1fr; gap:8px;
+  padding:10px calc(12px + var(--sar)) 4px calc(12px + var(--sal));
+}
+.stat{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px; }
+.stat .n{ font-size:17px; font-weight:800; line-height:1.2; }
+.stat .l{ font-size:11px; color:var(--sub); }
+
+/* ---------- Status-Tabs (nur Handy/Tablet) ---------- */
+.tabs{
+  display:flex; gap:6px; overflow-x:auto; scrollbar-width:none;
+  padding:8px calc(12px + var(--sar)) 8px calc(12px + var(--sal));
+  position:sticky; top:calc(var(--tap) + var(--sat) + 12px); z-index:20;
+  background:var(--bg);
+}
+.tabs::-webkit-scrollbar{ display:none; }
+.tab{
+  flex:none; min-height:38px; padding:7px 13px; border-radius:20px;
+  border:1px solid var(--line); background:#fff; color:var(--sub);
+  font-size:13px; font-weight:700; white-space:nowrap;
+  display:inline-flex; align-items:center; gap:6px; touch-action:manipulation;
+}
+.tab .n{
+  background:#e2e8f0; color:#475569; border-radius:20px;
+  font-size:11px; font-weight:800; padding:1px 7px; min-width:20px;
+}
+.tab[aria-selected="true"]{ background:var(--tc); border-color:var(--tc); color:#fff; }
+.tab[aria-selected="true"] .n{ background:rgba(255,255,255,.28); color:#fff; }
+
+/* ---------- Board ---------- */
+.board{
+  display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory;
+  padding:4px calc(12px + var(--sar)) 96px calc(12px + var(--sal));
+  scrollbar-width:none;
+}
+.board::-webkit-scrollbar{ display:none; }
+.col{
+  flex:0 0 86vw; scroll-snap-align:center;
+  background:#fff; border:1.5px solid var(--line); border-radius:14px;
+  display:flex; flex-direction:column; min-height:52vh;
+}
+.col.dragover{ border-color:var(--col-c,#2563eb); background:var(--col-bg,#eff6ff); }
+.col-head{
+  padding:12px 14px; border-bottom:1px solid var(--line); border-radius:13px 13px 0 0;
+  font-size:14px; font-weight:800; color:var(--col-c,#334155); background:var(--col-bg,#f8fafc);
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+}
+.col-head .count{
+  background:var(--col-c,#94a3b8); color:#fff; border-radius:20px;
+  font-size:11px; padding:2px 9px; font-weight:800; flex:none;
+}
+.col-body{ padding:10px; display:flex; flex-direction:column; gap:10px; flex:1; }
+.empty{
+  flex:1; display:flex; align-items:center; justify-content:center; text-align:center;
+  color:#94a3b8; font-size:13px; border:1.5px dashed #e2e8f0; border-radius:10px; padding:22px 14px;
+}
+.col-foot{ padding:0 10px 10px; }
+.col-foot button{ width:100%; border-style:dashed; color:var(--sub); }
+
+/* ---------- Karte ---------- */
+.card{
+  background:#fff; border:1px solid var(--line); border-left:5px solid var(--col-c,#94a3b8);
+  border-radius:10px; box-shadow:0 1px 2px rgba(0,0,0,.05);
+  display:flex; align-items:stretch; overflow:hidden;
+}
+.card.dragging{ opacity:.35; }
+.card-main{
+  flex:1; min-width:0; padding:11px 12px; background:none; border:none;
+  text-align:left; font:inherit; color:inherit; min-height:var(--tap);
+  display:block; cursor:pointer; touch-action:manipulation;
+}
+.card .title{ font-weight:700; font-size:14px; line-height:1.3; margin-bottom:4px; word-break:break-word; }
+.card .meta{ font-size:12.5px; color:var(--sub); display:flex; justify-content:space-between; gap:8px; }
+.card .amt{ font-weight:800; color:var(--ink); }
+.card .tags{ display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+.card .file-tag{
+  font-size:11px; color:var(--sub); background:#f1f5f9; border-radius:6px;
+  padding:3px 7px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.card .review-tag{
+  font-size:11px; background:#fef3c7; color:#92400e; border-radius:6px; padding:3px 7px; font-weight:700;
+}
+.card-move{
+  flex:none; width:46px; min-height:var(--tap); border:none; border-left:1px solid var(--line);
+  background:#f8fafc; color:var(--sub); font-size:19px; border-radius:0;
+}
+
+/* ---------- Aktionsleiste unten ---------- */
+.actionbar{
+  position:fixed; z-index:35; left:0; right:0; bottom:0;
+  padding:10px calc(12px + var(--sar)) calc(10px + var(--sab)) calc(12px + var(--sal));
+  background:linear-gradient(to top, #f1f5f9 62%, rgba(241,245,249,0));
+  display:flex; gap:8px; align-items:center;
+}
+.actionbar .grow{ flex:1; }
+.actionbar .primary{ box-shadow:0 6px 18px rgba(37,99,235,.35); }
+
+/* ---------- Bottom-Sheet (ersetzt das Desktop-Modal) ---------- */
+.overlay{
+  position:fixed; inset:0; background:rgba(15,23,42,.5); z-index:60;
+  display:none; align-items:flex-end; justify-content:center;
+}
+.overlay.open{ display:flex; }
+.sheet{
+  background:#fff; width:100%; max-height:92dvh;
+  border-radius:18px 18px 0 0; display:flex; flex-direction:column;
+  animation:slideUp .22s ease-out; overscroll-behavior:contain;
+}
+@keyframes slideUp{ from{ transform:translateY(100%); } to{ transform:translateY(0); } }
+@media (prefers-reduced-motion:reduce){ .sheet{ animation:none; } }
+.sheet-grip{ width:40px; height:4px; background:#cbd5e1; border-radius:4px; margin:9px auto 3px; flex:none; }
+.sheet-head{
+  padding:6px 16px 12px; border-bottom:1px solid var(--line); flex:none;
+  display:flex; align-items:center; gap:8px;
+}
+.sheet-head h2{ font-size:16px; margin:0; flex:1; }
+.sheet-body{
+  padding:14px 16px; overflow-y:auto; flex:1; -webkit-overflow-scrolling:touch;
+  padding-bottom:calc(14px + var(--sab));
+}
+.sheet-foot{
+  padding:10px 16px calc(10px + var(--sab)); border-top:1px solid var(--line);
+  display:flex; gap:8px; flex:none; background:#fff;
+}
+.sheet-foot .grow{ flex:1; }
+
+/* ---------- Formularfelder ---------- */
+.field{ margin-bottom:14px; }
+.field label{ display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:var(--sub); margin-bottom:6px; }
+.field input, .field textarea, .field select{
+  width:100%; padding:11px 12px; border:1px solid #cbd5e1; border-radius:10px;
+  font-family:inherit; font-size:16px;  /* 16px verhindert Auto-Zoom beim Fokus */
+  min-height:var(--tap); background:#fff; color:var(--ink);
+}
+.field textarea{ resize:vertical; min-height:80px; }
+.field input:focus, .field textarea:focus, .field select:focus{
+  outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue);
+}
+.row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+.filepick{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.filepick button{ flex-direction:column; gap:3px; padding:12px 8px; font-size:13px; min-height:64px; }
+.filepick .ic{ font-size:20px; }
+.filechip{
+  margin-top:10px; display:flex; align-items:center; gap:8px;
+  background:#f1f5f9; border-radius:10px; padding:9px 12px; font-size:13px;
+}
+.filechip .nm{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#analyze-status{ font-size:13px; color:var(--sub); margin-top:9px; min-height:18px; }
+#analyze-status.ok{ color:var(--green); font-weight:700; }
+.preview{ margin-top:10px; }
+.preview img{ max-width:100%; border-radius:8px; border:1px solid var(--line); display:block; }
+
+/* Statuswahl im Verschieben-Sheet */
+.statuslist{ display:flex; flex-direction:column; gap:8px; }
+.statuslist button{
+  width:100%; justify-content:flex-start; gap:10px; padding:14px 14px; min-height:56px;
+  border-left:5px solid var(--sc); font-size:15px; text-align:left;
+}
+.statuslist button[aria-current="true"]{ background:var(--sbg); border-color:var(--sc); }
+.statuslist .tick{ margin-left:auto; color:var(--sc); font-weight:800; }
+
+.history{ margin-top:6px; border-top:1px solid var(--line); padding-top:14px; }
+.history h3{ font-size:13px; margin:0 0 8px; color:var(--sub); }
+.history ul{ list-style:none; margin:0; padding:0; font-size:13px; }
+.history li{ padding:7px 0; border-bottom:1px dashed #f1f5f9; display:flex; justify-content:space-between; gap:10px; color:var(--sub); }
+.history li b{ color:var(--ink); white-space:nowrap; }
+
+/* ---------- Toast und Update-Banner ---------- */
+.toast{
+  position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(78px + var(--sab)); background:#0f172a; color:#fff;
+  padding:11px 18px; border-radius:10px; font-size:14px; max-width:calc(100vw - 32px);
+  opacity:0; pointer-events:none; transition:opacity .2s; z-index:90; text-align:center;
+}
+.toast.show{ opacity:1; }
+.updatebar{
+  position:fixed; left:0; right:0; bottom:0; z-index:95;
+  background:var(--blue); color:#fff; display:none; align-items:center; gap:10px;
+  padding:12px calc(14px + var(--sar)) calc(12px + var(--sab)) calc(14px + var(--sal));
+  font-size:14px; font-weight:600;
+}
+.updatebar.show{ display:flex; }
+.updatebar button{ margin-left:auto; background:#fff; color:var(--blue); border-color:#fff; min-height:38px; padding:8px 14px; }
+
+/* =======================================================================
+   Tablet ab 768px: zwei Spalten nebeneinander, Sheet wird zum Dialog
+   ======================================================================= */
+@media (min-width:768px){
+  .stats{ grid-template-columns:repeat(4,1fr); }
+  .col{ flex:0 0 46%; }
+  .overlay{ align-items:center; padding:24px; }
+  .sheet{ max-width:600px; border-radius:16px; max-height:88dvh; animation:none; }
+  .sheet-grip{ display:none; }
+  .sheet-head{ padding-top:16px; }
+}
+
+/* =======================================================================
+   Desktop ab 1024px: klassisches Board, Tabs weg, Maus-Bedienung
+   ======================================================================= */
+@media (min-width:1024px){
+  body{ font-size:14px; }
+  .tabs{ display:none; }
   .board{
-    display:grid; grid-template-columns: repeat(5, minmax(210px,1fr));
-    gap:12px; padding:14px 22px 26px; overflow-x:auto;
+    display:grid; grid-template-columns:repeat(5,minmax(200px,1fr));
+    padding-bottom:88px; overflow:visible;
   }
-  .col{
-    background:#fff; border:1.5px solid var(--line); border-radius:10px; min-height:360px;
-    display:flex; flex-direction:column; transition:border-color .12s, background .12s;
+  .col{ flex:none; min-height:60vh; }
+  .card-main{ cursor:pointer; }
+  .card[draggable="true"] .card-main{ cursor:grab; }
+  .card[draggable="true"]:active .card-main{ cursor:grabbing; }
+  .actionbar{
+    position:sticky; bottom:0; background:linear-gradient(to top,#f1f5f9 70%,rgba(241,245,249,0));
   }
-  .col.dragover{ border-color:var(--col-c,#2563eb); background:var(--col-bg,#eff6ff); }
-  .col-head{
-    padding:10px 12px; border-bottom:1px solid var(--line); border-radius:10px 10px 0 0;
-    font-size:12.5px; font-weight:800; color:var(--col-c,#334155);
-    background:var(--col-bg,#f8fafc); display:flex; justify-content:space-between; align-items:center;
-  }
-  .col-head .count{
-    background:var(--col-c,#94a3b8); color:#fff; border-radius:20px; font-size:10.5px;
-    padding:1px 8px; font-weight:800;
-  }
-  .col-body{ padding:8px; display:flex; flex-direction:column; gap:8px; flex:1; }
-  .empty{
-    flex:1; display:flex; align-items:center; justify-content:center; text-align:center;
-    color:#94a3b8; font-size:11.5px; border:1.5px dashed #e2e8f0; border-radius:8px; padding:14px; margin:2px;
-  }
-
-  .card{
-    background:#fff; border:1px solid var(--line); border-left:4px solid var(--col-c,#94a3b8);
-    border-radius:8px; padding:9px 10px; cursor:grab; box-shadow:0 1px 2px rgba(0,0,0,.04);
-  }
-  .card:active{ cursor:grabbing; }
-  .card.dragging{ opacity:.35; }
-  .card .title{ font-weight:700; font-size:12.5px; line-height:1.3; margin-bottom:3px; }
-  .card .meta{ font-size:11px; color:var(--sub); display:flex; justify-content:space-between; gap:6px; }
-  .card .amt{ font-weight:700; color:var(--ink); }
-  .card .file-tag{
-    display:inline-flex; align-items:center; gap:4px; margin-top:6px; font-size:10px; color:var(--sub);
-    background:#f1f5f9; border-radius:5px; padding:2px 6px;
-  }
-  .card .review-tag{
-    display:inline-flex; align-items:center; gap:4px; margin-top:6px; margin-left:5px; font-size:10px;
-    background:#fef3c7; color:#92400e; border-radius:5px; padding:2px 6px; font-weight:700;
-  }
-
-  .dropzone-hint{
-    font-size:10.5px; color:#94a3b8; text-align:center; padding:6px 8px 10px;
-  }
-
-  /* Modal */
-  .overlay{
-    position:fixed; inset:0; background:rgba(15,23,42,.45); display:none;
-    align-items:center; justify-content:center; z-index:50; padding:20px;
-  }
-  .overlay.open{ display:flex; }
-  .modal{
-    background:#fff; border-radius:12px; width:100%; max-width:560px; max-height:88vh; overflow-y:auto;
-    padding:22px; box-shadow:0 20px 50px rgba(0,0,0,.25);
-  }
-  .modal h2{ margin:0 0 14px; font-size:16px; }
-  .field{ margin-bottom:12px; }
-  .field label{ display:block; font-size:11.5px; font-weight:700; color:var(--sub); margin-bottom:4px; }
-  .field input[type=text], .field input[type=number], .field input[type=date], .field textarea, .field select{
-    width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-family:inherit; font-size:13px;
-  }
-  .field textarea{ resize:vertical; min-height:56px; }
-  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .filedrop{
-    border:1.5px dashed #cbd5e1; border-radius:8px; padding:14px; text-align:center; font-size:12px; color:var(--sub);
-    cursor:pointer;
-  }
-  .filedrop.hover{ border-color:var(--blue); background:var(--blue-l); }
-  .preview{ margin-top:10px; }
-  .preview img{ max-width:100%; border-radius:6px; border:1px solid var(--line); }
-  .preview iframe{ width:100%; height:340px; border:1px solid var(--line); border-radius:6px; }
-  #analyze-status{ font-size:11px; color:var(--sub); margin-top:6px; min-height:14px; }
-  #analyze-status.ok{ color:#16a34a; font-weight:700; }
-  .history{ margin-top:14px; border-top:1px solid var(--line); padding-top:12px; }
-  .history h3{ font-size:12px; margin:0 0 8px; color:var(--sub); }
-  .history ul{ list-style:none; margin:0; padding:0; font-size:11.5px; }
-  .history li{ padding:4px 0; border-bottom:1px dashed #f1f5f9; display:flex; justify-content:space-between; color:var(--sub); }
-  .history li b{ color:var(--ink); }
-  .modal-actions{ display:flex; justify-content:space-between; margin-top:18px; gap:8px; }
-  .modal-actions .right{ display:flex; gap:8px; }
-
-  .note-box{
-    margin:0 22px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;
-    padding:9px 14px; font-size:11.5px; color:#1e3a8a;
-  }
-
-  footer{ text-align:center; color:#94a3b8; font-size:11px; padding:14px; }
-  .toast{
-    position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#0f172a; color:#fff;
-    padding:9px 16px; border-radius:8px; font-size:12.5px; opacity:0; pointer-events:none; transition:opacity .2s; z-index:100;
-  }
-  .toast.show{ opacity:1; }
+  .toast{ bottom:96px; }
+}
 </style>
 </head>
 <body>
 
-<header>
-  <div>
-    <h1>Rechnungs-Tracker – Wahlarzt &amp; Apotheke</h1>
-    <p>Rechnung (PDF/Bild) direkt in eine Spalte ziehen – Betrag, Datum und Aussteller werden automatisch erkannt. Karten per Drag &amp; Drop zwischen Spalten verschieben.</p>
-    <div class="saved-indicator" id="savedIndicator">Noch keine Änderung gespeichert</div>
-  </div>
-  <div class="actions">
-    <span class="badge-offline">🔒 100 % lokal, läuft offline</span>
-    <button class="ghost" id="btnExport">Sichern (JSON)</button>
-    <button class="ghost" id="btnImportTrigger">Wiederherstellen</button>
-    <input type="file" id="importFile" accept="application/json" style="display:none">
-    <button class="primary" id="btnAdd">+ Neue Rechnung</button>
-  </div>
+<header class="topbar">
+  <h1>Rechnungs-Tracker</h1>
+  <span class="saved-indicator" id="savedIndicator"></span>
+  <button class="info-btn" data-info="app" aria-label="Was macht diese App?">i</button>
+  <button class="icon-btn" id="btnMenu" aria-label="Menü">⋯</button>
 </header>
-
-<div class="note-box">
-  <b>Wichtig:</b> Betrag, Datum und Aussteller werden automatisch aus der Datei ausgelesen (lokale Text-/Bilderkennung im Browser, keine Internetverbindung nötig) – das ist eine Lesehilfe, keine Garantie. Bitte immer kurz prüfen. Ob die ÖGK eine Leistung tatsächlich (anteilig) erstattet, kann dieses Tool nicht bestimmen – das hängt vom genauen Tarifposten ab und muss bei der ÖGK/Ihrer Versicherung nachgefragt werden.
-</div>
 
 <div class="stats" id="stats"></div>
 
+<div class="tabs" id="tabs" role="tablist"></div>
+
 <div class="board" id="board"></div>
 
-<footer>Alle Daten bleiben lokal auf diesem Rechner gespeichert (IndexedDB im Browser) – keine Übertragung an einen Server, auch die Dokumentenanalyse läuft komplett offline. Jede Änderung wird sofort automatisch gespeichert. Trotzdem regelmäßig „Sichern“ nutzen, um ein Backup zu behalten – Browserdaten können z. B. beim Zurücksetzen des Browsers verloren gehen.</footer>
-
-<div class="overlay" id="overlay">
-  <div class="modal" id="modal"></div>
+<div class="actionbar">
+  <span class="grow"></span>
+  <button class="primary" id="btnAdd">+ Neue Rechnung</button>
 </div>
 
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+</div>
+
+<div class="popover" id="popover" role="tooltip"></div>
 <div class="toast" id="toast"></div>
+<div class="updatebar" id="updatebar">
+  <span>Neue Version verfügbar</span>
+  <button id="btnUpdate">Jetzt laden</button>
+</div>
 
 <script src="./vendor/tesseract/tesseract.min.js"></script>
 <script>
-/* ---------- Konfiguration der Spalten ---------- */
+/* ---------- Spalten ---------- */
 const COLUMNS = [
-  { key:'bezahlt',        title:'1 · Bezahlt',                 c:'#2563eb', bg:'#eff6ff' },
-  { key:'oegk_eingereicht',title:'2 · Bei ÖGK eingereicht',     c:'#0891b2', bg:'#ecfeff' },
-  { key:'oegk_erstattet', title:'3 · ÖGK-Erstattung erhalten',  c:'#7c3aed', bg:'#f5f3ff' },
-  { key:'kv_eingereicht', title:'4 · Bei privater KV eingereicht', c:'#d97706', bg:'#fffbeb' },
-  { key:'abgeschlossen',  title:'5 · Abgeschlossen',            c:'#16a34a', bg:'#f0fdf4' },
+  { key:'bezahlt',          title:'1 · Bezahlt',                    short:'Bezahlt',      c:'#2563eb', bg:'#eff6ff' },
+  { key:'oegk_eingereicht', title:'2 · Bei ÖGK eingereicht',        short:'ÖGK offen',    c:'#0891b2', bg:'#ecfeff' },
+  { key:'oegk_erstattet',   title:'3 · ÖGK-Erstattung erhalten',    short:'ÖGK erhalten', c:'#7c3aed', bg:'#f5f3ff' },
+  { key:'kv_eingereicht',   title:'4 · Bei privater KV eingereicht',short:'Private KV',   c:'#d97706', bg:'#fffbeb' },
+  { key:'abgeschlossen',    title:'5 · Abgeschlossen',              c:'#16a34a', short:'Fertig', bg:'#f0fdf4' },
 ];
 const colByKey = Object.fromEntries(COLUMNS.map(c=>[c.key,c]));
 
-/* ---------- IndexedDB (Autosave bei jeder Aktion) ---------- */
+/* ---------- Erklärtexte: stehen nicht mehr dauerhaft im Layout,
+   sondern nur hinter den ⓘ-Buttons (Tap am Handy, Hover am Desktop). ---------- */
+const INFO = {
+  app: '<b>Wofür ist das?</b><br>Rechnungen von Wahlärzten und Apotheken durch die Erstattung begleiten: bezahlt → bei der ÖGK eingereicht → erstattet → bei der privaten KV eingereicht → abgeschlossen.<br><br>Neue Rechnung anlegen, Foto oder PDF anhängen – Betrag, Datum und Aussteller werden lokal ausgelesen.',
+  ocr: '<b>Automatische Erkennung</b><br>Betrag, Datum und Aussteller werden direkt auf dem Gerät aus der Datei gelesen (Texterkennung im Browser, keine Internetverbindung nötig).<br><br>Das ist eine <b>Lesehilfe, keine Garantie</b> – bitte immer kurz prüfen.',
+  erstattung: '<b>Wird das erstattet?</b><br>Ob die ÖGK eine Leistung tatsächlich und in welcher Höhe erstattet, kann dieses Tool nicht bestimmen. Das hängt vom genauen Tarifposten ab und muss bei der ÖGK bzw. deiner Versicherung nachgefragt werden.',
+  privacy: '<b>Wo liegen meine Daten?</b><br>Ausschließlich auf diesem Gerät (IndexedDB im Browser). Keine Übertragung an einen Server, auch die Dokumentenanalyse läuft offline.<br><br><b>Achtung:</b> „Browserdaten löschen“ kann diese Daten mitlöschen. Deshalb regelmäßig „Sichern“ nutzen.',
+  move: '<b>Karte verschieben</b><br>Auf ⇄ tippen und den neuen Status wählen. Am Desktop funktioniert zusätzlich Ziehen mit der Maus.',
+};
+
+/* ---------- IndexedDB ---------- */
 let db;
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open('rechnungs-tracker', 1);
     req.onupgradeneeded = e=>{
       const d = e.target.result;
-      if(!d.objectStoreNames.contains('invoices')){
-        d.createObjectStore('invoices', { keyPath:'id' });
-      }
+      if(!d.objectStoreNames.contains('invoices')) d.createObjectStore('invoices', { keyPath:'id' });
     };
     req.onsuccess = e=>{ db = e.target.result; resolve(db); };
     req.onerror = e=> reject(e);
@@ -218,8 +383,7 @@ function openDB(){
 }
 function dbAll(){
   return new Promise((resolve,reject)=>{
-    const tx = db.transaction('invoices','readonly');
-    const req = tx.objectStore('invoices').getAll();
+    const req = db.transaction('invoices','readonly').objectStore('invoices').getAll();
     req.onsuccess = ()=> resolve(req.result || []);
     req.onerror = e=> reject(e);
   });
@@ -228,7 +392,7 @@ function dbPut(rec){
   return new Promise((resolve,reject)=>{
     const tx = db.transaction('invoices','readwrite');
     tx.objectStore('invoices').put(rec);
-    tx.oncomplete = ()=> { markSaved(); resolve(); };
+    tx.oncomplete = ()=>{ markSaved(); resolve(); };
     tx.onerror = e=> reject(e);
   });
 }
@@ -236,44 +400,79 @@ function dbDelete(id){
   return new Promise((resolve,reject)=>{
     const tx = db.transaction('invoices','readwrite');
     tx.objectStore('invoices').delete(id);
-    tx.oncomplete = ()=> { markSaved(); resolve(); };
+    tx.oncomplete = ()=>{ markSaved(); resolve(); };
     tx.onerror = e=> reject(e);
   });
 }
 function markSaved(){
   const el = document.getElementById('savedIndicator');
-  if(el) el.textContent = '✓ Automatisch gespeichert · ' + new Date().toLocaleTimeString('de-AT');
+  if(el) el.textContent = '✓ ' + new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
 }
 
-/* ---------- Helpers ---------- */
+/* ---------- Helfer ---------- */
 const uid = ()=> 'inv_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 const fmtEUR = n => (n===''||n===null||n===undefined||isNaN(n)) ? '–' : Number(n).toLocaleString('de-AT',{style:'currency',currency:'EUR'});
-const fmtDate = iso => { if(!iso) return '–'; const d=new Date(iso); return d.toLocaleDateString('de-AT'); };
+const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('de-AT') : '–';
 const fmtDateTime = iso => { const d=new Date(iso); return d.toLocaleDateString('de-AT')+' '+d.toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'}); };
+const escapeHTML = s => String(s).replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function fileToDataURL(file){
   return new Promise((resolve,reject)=>{
     const r = new FileReader();
-    r.onload = ()=> resolve(r.result);
-    r.onerror = reject;
+    r.onload = ()=> resolve(r.result); r.onerror = reject;
     r.readAsDataURL(file);
   });
+}
+/* Data-URLs sind fuer PDF-Vorschau auf Android unbrauchbar – Blob-URL nutzen. */
+function dataURLtoBlobURL(dataURL, type){
+  try{
+    const [head, b64] = dataURL.split(',');
+    const mime = type || (head.match(/:(.*?);/)||[])[1] || 'application/octet-stream';
+    const bin = atob(b64); const arr = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([arr], {type:mime}));
+  }catch(e){ return null; }
 }
 function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   clearTimeout(toast._t);
-  toast._t = setTimeout(()=> t.classList.remove('show'), 2400);
-}
-function escapeHTML(s){
-  return String(s).replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  toast._t = setTimeout(()=> t.classList.remove('show'), 2600);
 }
 
+/* ---------- Info-Popover: Tap ueberall, Hover zusaetzlich am Desktop ---------- */
+const popover = document.getElementById('popover');
+let popoverAnchor = null;
+function showInfo(btn){
+  const key = btn.dataset.info;
+  if(!INFO[key]) return;
+  popover.innerHTML = INFO[key];
+  popover.classList.add('open');
+  popoverAnchor = btn;
+  const r = btn.getBoundingClientRect();
+  const pr = popover.getBoundingClientRect();
+  let left = r.left + r.width/2 - pr.width/2;
+  left = Math.max(12, Math.min(left, window.innerWidth - pr.width - 12));
+  let top = r.bottom + 8;
+  if(top + pr.height > window.innerHeight - 12) top = Math.max(12, r.top - pr.height - 8);
+  popover.style.left = left + 'px';
+  popover.style.top = top + 'px';
+}
+function hideInfo(){ popover.classList.remove('open'); popoverAnchor = null; }
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('.info-btn');
+  if(btn){ e.stopPropagation(); (popoverAnchor === btn) ? hideInfo() : showInfo(btn); return; }
+  if(!e.target.closest('.popover')) hideInfo();
+});
+if(window.matchMedia('(hover:hover) and (pointer:fine)').matches){
+  document.addEventListener('mouseover', e=>{ const b = e.target.closest('.info-btn'); if(b) showInfo(b); });
+  document.addEventListener('mouseout',  e=>{ if(e.target.closest('.info-btn')) hideInfo(); });
+}
+window.addEventListener('scroll', hideInfo, true);
+window.addEventListener('resize', hideInfo);
+
 /* ==================================================================
-   AUTOMATISCHE DOKUMENTENANALYSE (komplett lokal, kein Internet nötig)
-   - PDFs mit Textebene: PDF.js liest den Text direkt aus
-   - Fotos/Scans: Tesseract.js (OCR) liest den Text aus dem Bild
-   - Danach: einfache Texterkennung für Betrag / Datum / Aussteller
+   Lokale Dokumentenanalyse (PDF-Text bzw. OCR) – unveraendert
    ================================================================== */
 let pdfjsPromise = null;
 function getPdfjs(){
@@ -285,78 +484,57 @@ function getPdfjs(){
   }
   return pdfjsPromise;
 }
-
 let tesseractWorkerPromise = null;
 function getTesseractWorker(){
   if(!tesseractWorkerPromise){
     tesseractWorkerPromise = Tesseract.createWorker('deu', 1, {
-      workerPath: './vendor/tesseract/worker.min.js',
-      corePath: './vendor/tesseract/',
-      langPath: './vendor/tesseract/lang/',
-      gzip: true,
+      workerPath:'./vendor/tesseract/worker.min.js',
+      corePath:'./vendor/tesseract/',
+      langPath:'./vendor/tesseract/lang/',
+      gzip:true,
     });
   }
   return tesseractWorkerPromise;
 }
-
 async function analyzePDF(file){
   const pdfjsLib = await getPdfjs();
-  const buf = await file.arrayBuffer();
-  const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+  const doc = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
   const allLines = [];
-  for(let p = 1; p <= doc.numPages; p++){
-    const page = await doc.getPage(p);
-    const content = await page.getTextContent();
+  for(let p=1; p<=doc.numPages; p++){
+    const content = await (await doc.getPage(p)).getTextContent();
     let curY = null, curLine = [];
     for(const item of content.items){
       const y = Math.round(item.transform[5]);
       if(curY === null || Math.abs(y - curY) > 2){
         if(curLine.length) allLines.push(curLine.join(''));
-        curLine = [item.str];
-        curY = y;
-      } else {
-        curLine.push(item.str);
-      }
+        curLine = [item.str]; curY = y;
+      } else curLine.push(item.str);
     }
     if(curLine.length) allLines.push(curLine.join(''));
   }
   return parseInvoiceText(allLines.join('\n'), allLines);
 }
-
 async function analyzeImage(file){
   const worker = await getTesseractWorker();
-  const dataURL = await fileToDataURL(file);
-  const { data } = await worker.recognize(dataURL);
+  const { data } = await worker.recognize(await fileToDataURL(file));
   const text = data.text || '';
   return parseInvoiceText(text, text.split('\n'));
 }
-
 function normalizeAmount(raw){
   raw = raw.trim();
-  if(raw.includes(',')){
-    // Deutsches Format: Punkt = Tausendertrennzeichen, Komma = Dezimaltrennzeichen
-    raw = raw.replace(/\./g,'').replace(',', '.');
-  } else if(/\.\d{1,2}$/.test(raw)){
-    // Bereits englisches Dezimalformat, z. B. "89.90" -> unverändert lassen
-  } else {
-    // Punkt(e) ohne Komma und nicht wie ein Dezimalpunkt -> Tausendertrennzeichen
-    raw = raw.replace(/\./g,'');
-  }
+  if(raw.includes(',')) raw = raw.replace(/\./g,'').replace(',', '.');
+  else if(/\.\d{1,2}$/.test(raw)){ /* bereits Dezimalpunkt */ }
+  else raw = raw.replace(/\./g,'');
   return parseFloat(raw);
 }
 function extractAmount(text){
   const patterns = [
     /(?:Gesamtbetrag|Rechnungsbetrag|Endbetrag|Zahlbetrag|Zu\s*zahlen|Summe)[^\d€]{0,20}([\d.,]+)\s*(?:€|EUR)?/i,
-    /€\s*([\d.,]+)/,
-    /([\d.,]+)\s*EUR/i,
-    /([\d.,]+)\s*€/,
+    /€\s*([\d.,]+)/, /([\d.,]+)\s*EUR/i, /([\d.,]+)\s*€/,
   ];
   for(const re of patterns){
     const m = text.match(re);
-    if(m){
-      const n = normalizeAmount(m[1]);
-      if(!isNaN(n) && n > 0 && n < 100000) return n;
-    }
+    if(m){ const n = normalizeAmount(m[1]); if(!isNaN(n) && n > 0 && n < 100000) return n; }
   }
   return null;
 }
@@ -378,85 +556,93 @@ function extractIssuer(lines){
   return (nonEmpty[0] || '').slice(0,80);
 }
 function parseInvoiceText(text, lines){
-  return { amount: extractAmount(text), date: extractDate(text), issuer: extractIssuer(lines), rawText: text };
+  return { amount: extractAmount(text), date: extractDate(text), issuer: extractIssuer(lines), rawText:text };
 }
-
 async function analyzeInvoiceFile(file){
   try{
     if(file.type === 'application/pdf') return await analyzePDF(file);
     if(file.type && file.type.startsWith('image/')) return await analyzeImage(file);
-  }catch(err){
-    console.error('Automatische Analyse fehlgeschlagen:', err);
-  }
+  }catch(err){ console.error('Analyse fehlgeschlagen:', err); }
   return null;
 }
 
-/* ---------- State & Render ---------- */
+/* ---------- Zustand und Darstellung ---------- */
 let invoices = [];
+const isDesktop = ()=> window.matchMedia('(min-width:1024px)').matches;
 
-async function loadAll(){
-  invoices = await dbAll();
-  render();
-}
-
-function render(){
-  renderStats();
-  renderBoard();
-}
+async function loadAll(){ invoices = await dbAll(); render(); }
+function render(){ renderStats(); renderTabs(); renderBoard(); }
 
 function renderStats(){
   const total = invoices.length;
   const offen = invoices.filter(i=> i.status!=='abgeschlossen');
   const sumOffen = offen.reduce((s,i)=> s + (Number(i.amount)||0), 0);
-  const sumDone = invoices.filter(i=>i.status==='abgeschlossen').reduce((s,i)=> s + (Number(i.amount)||0), 0);
-  const el = document.getElementById('stats');
-  el.innerHTML = `
-    <div class="stat"><div class="n">${total}</div><div class="l">Rechnungen gesamt</div></div>
-    <div class="stat"><div class="n">${offen.length}</div><div class="l">noch in Bearbeitung</div></div>
-    <div class="stat"><div class="n">${fmtEUR(sumOffen)}</div><div class="l">offener Betrag (Summe)</div></div>
-    <div class="stat"><div class="n">${fmtEUR(sumDone)}</div><div class="l">bereits abgeschlossen (Summe)</div></div>
-  `;
+  const sumDone  = invoices.filter(i=> i.status==='abgeschlossen').reduce((s,i)=> s + (Number(i.amount)||0), 0);
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="n">${total}</div><div class="l">Rechnungen</div></div>
+    <div class="stat"><div class="n">${offen.length}</div><div class="l">in Bearbeitung</div></div>
+    <div class="stat"><div class="n">${fmtEUR(sumOffen)}</div><div class="l">offen</div></div>
+    <div class="stat"><div class="n">${fmtEUR(sumDone)}</div><div class="l">abgeschlossen</div></div>`;
+}
+
+function renderTabs(){
+  const el = document.getElementById('tabs');
+  el.innerHTML = COLUMNS.map((c,i)=>`
+    <button class="tab" role="tab" data-idx="${i}" style="--tc:${c.c}"
+            aria-selected="${i===activeCol}">
+      ${escapeHTML(c.short)}<span class="n">${invoices.filter(v=>v.status===c.key).length}</span>
+    </button>`).join('');
+  el.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click', ()=> scrollToCol(Number(t.dataset.idx)));
+  });
+}
+
+let activeCol = 0;
+function scrollToCol(idx){
+  const board = document.getElementById('board');
+  const col = board.children[idx];
+  if(!col) return;
+  activeCol = idx;
+  if(!isDesktop()) board.scrollTo({ left: col.offsetLeft - board.offsetLeft - 12, behavior:'smooth' });
+  syncTabs();
+}
+function syncTabs(){
+  document.querySelectorAll('#tabs .tab').forEach(t=>
+    t.setAttribute('aria-selected', String(Number(t.dataset.idx) === activeCol)));
 }
 
 function renderBoard(){
   const board = document.getElementById('board');
   board.innerHTML = '';
-  COLUMNS.forEach(col=>{
+  COLUMNS.forEach((col, idx)=>{
     const items = invoices.filter(i=> i.status === col.key)
-                           .sort((a,b)=> (b.updatedAt||'').localeCompare(a.updatedAt||''));
+                          .sort((a,b)=> (b.updatedAt||'').localeCompare(a.updatedAt||''));
     const colEl = document.createElement('div');
     colEl.className = 'col';
     colEl.style.setProperty('--col-c', col.c);
     colEl.style.setProperty('--col-bg', col.bg);
     colEl.dataset.key = col.key;
-
     colEl.innerHTML = `
-      <div class="col-head"><span>${col.title}</span><span class="count">${items.length}</span></div>
-      <div class="col-body" data-body="${col.key}"></div>
-      <div class="dropzone-hint">Datei hierher ziehen oder Karte verschieben</div>
-    `;
+      <div class="col-head"><span>${escapeHTML(col.title)}</span><span class="count">${items.length}</span></div>
+      <div class="col-body"></div>
+      <div class="col-foot"><button data-add="${col.key}">+ Rechnung hier anlegen</button></div>`;
 
     const body = colEl.querySelector('.col-body');
-    if(items.length === 0){
-      body.innerHTML = `<div class="empty">Noch keine Rechnung hier</div>`;
-    } else {
-      items.forEach(inv=> body.appendChild(renderCard(inv, col)));
-    }
+    if(items.length === 0) body.innerHTML = `<div class="empty">Noch keine Rechnung hier</div>`;
+    else items.forEach(inv=> body.appendChild(renderCard(inv, col)));
 
+    colEl.querySelector('[data-add]').addEventListener('click', ()=> openEditor(null, col.key));
+
+    /* Drag & Drop bleibt als Desktop-Komfort erhalten – auf Touch feuert
+       die HTML5-Drag-API keine Events, dort greift der ⇄-Button. */
     ['dragenter','dragover'].forEach(evt=> colEl.addEventListener(evt, e=>{
-      e.preventDefault();
-      colEl.classList.add('dragover');
+      e.preventDefault(); colEl.classList.add('dragover');
     }));
-    colEl.addEventListener('dragleave', e=>{
-      if(!colEl.contains(e.relatedTarget)) colEl.classList.remove('dragover');
-    });
+    colEl.addEventListener('dragleave', e=>{ if(!colEl.contains(e.relatedTarget)) colEl.classList.remove('dragover'); });
     colEl.addEventListener('drop', async e=>{
-      e.preventDefault();
-      colEl.classList.remove('dragover');
-      if(e.dataTransfer.files && e.dataTransfer.files.length > 0){
-        for(const file of e.dataTransfer.files){
-          await createInvoiceFromFile(file, col.key);
-        }
+      e.preventDefault(); colEl.classList.remove('dragover');
+      if(e.dataTransfer.files && e.dataTransfer.files.length){
+        for(const file of e.dataTransfer.files) await createInvoiceFromFile(file, col.key);
         await loadAll();
         toast('Rechnung hinzugefügt – wird analysiert …');
       } else {
@@ -464,59 +650,73 @@ function renderBoard(){
         if(id) await moveInvoice(id, col.key);
       }
     });
-
     board.appendChild(colEl);
   });
+  syncTabs();
 }
 
 function renderCard(inv, col){
   const el = document.createElement('div');
   el.className = 'card';
   el.style.setProperty('--col-c', col.c);
-  el.draggable = true;
   el.dataset.id = inv.id;
+  if(isDesktop()) el.draggable = true;
   el.innerHTML = `
-    <div class="title">${escapeHTML(inv.title || 'Ohne Bezeichnung')}</div>
-    <div class="meta"><span>${fmtDate(inv.date)}</span><span class="amt">${fmtEUR(inv.amount)}</span></div>
-    ${inv.fileName ? `<div class="file-tag">📎 ${escapeHTML(inv.fileName)}</div>` : ''}
-    ${inv.needsReview ? `<div class="review-tag">⚠ automatisch erkannt – prüfen</div>` : ''}
-  `;
+    <button class="card-main" type="button">
+      <span class="title">${escapeHTML(inv.title || 'Ohne Bezeichnung')}</span>
+      <span class="meta"><span>${fmtDate(inv.date)}</span><span class="amt">${fmtEUR(inv.amount)}</span></span>
+      ${(inv.fileName || inv.needsReview) ? `<span class="tags">
+        ${inv.fileName ? `<span class="file-tag">📎 ${escapeHTML(inv.fileName)}</span>` : ''}
+        ${inv.needsReview ? `<span class="review-tag">⚠ prüfen</span>` : ''}
+      </span>` : ''}
+    </button>
+    <button class="card-move" type="button" aria-label="Status ändern" title="Status ändern">⇄</button>`;
+
+  el.querySelector('.card-main').addEventListener('click', ()=> openEditor(inv.id));
+  el.querySelector('.card-move').addEventListener('click', e=>{ e.stopPropagation(); openMoveSheet(inv.id); });
+
   el.addEventListener('dragstart', e=>{
     e.dataTransfer.setData('text/plain', inv.id);
     e.dataTransfer.effectAllowed = 'move';
     setTimeout(()=> el.classList.add('dragging'), 0);
   });
   el.addEventListener('dragend', ()=> el.classList.remove('dragging'));
-  el.addEventListener('click', ()=> openModal(inv.id));
   return el;
 }
 
-/* ---------- CRUD ---------- */
+/* Board-Scroll haelt die Tabs synchron */
+(function(){
+  const board = document.getElementById('board');
+  let ticking = false;
+  board.addEventListener('scroll', ()=>{
+    if(ticking || isDesktop()) return;
+    ticking = true;
+    requestAnimationFrame(()=>{
+      const mid = board.scrollLeft + board.clientWidth/2;
+      let best = 0, bestD = Infinity;
+      [...board.children].forEach((c,i)=>{
+        const d = Math.abs((c.offsetLeft - board.offsetLeft) + c.offsetWidth/2 - mid);
+        if(d < bestD){ bestD = d; best = i; }
+      });
+      if(best !== activeCol){ activeCol = best; syncTabs(); }
+      ticking = false;
+    });
+  }, { passive:true });
+})();
+
+/* ---------- Datensatz-Operationen ---------- */
 async function createInvoiceFromFile(file, status){
-  const dataURL = await fileToDataURL(file);
   const now = new Date().toISOString();
   const id = uid();
-  const rec = {
-    id,
-    title: file.name.replace(/\.[a-z0-9]+$/i,''),
-    amount: '',
-    date: now.slice(0,10),
-    note: '',
-    status: status,
-    fileName: file.name,
-    fileType: file.type,
-    fileData: dataURL,
-    createdAt: now,
-    updatedAt: now,
-    needsReview: false,
-    history: [{ status, at: now, label: colByKey[status].title }]
-  };
-  await dbPut(rec);
-  // Automatische Analyse läuft im Hintergrund weiter, ohne die Eingabe zu blockieren.
-  analyzeAndFill(id, file);
+  await dbPut({
+    id, title: file.name.replace(/\.[a-z0-9]+$/i,''), amount:'', date: now.slice(0,10), note:'',
+    status, fileName:file.name, fileType:file.type, fileData: await fileToDataURL(file),
+    createdAt:now, updatedAt:now, needsReview:false,
+    history:[{ status, at:now, label: colByKey[status].title }]
+  });
+  analyzeAndFill(id, file);   // laeuft im Hintergrund weiter
   return id;
 }
-
 async function analyzeAndFill(id, file){
   const result = await analyzeInvoiceFile(file);
   if(!result) return;
@@ -530,12 +730,10 @@ async function analyzeAndFill(id, file){
   if(changed){
     current.needsReview = true;
     current.updatedAt = new Date().toISOString();
-    await dbPut(current);
-    await loadAll();
-    toast('🔍 „' + (current.title || defaultTitle) + '“ analysiert – bitte kurz prüfen');
+    await dbPut(current); await loadAll();
+    toast('🔍 „' + (current.title || defaultTitle) + '“ analysiert – bitte prüfen');
   }
 }
-
 async function moveInvoice(id, newStatus){
   const inv = invoices.find(i=> i.id === id);
   if(!inv || inv.status === newStatus) return;
@@ -543,181 +741,236 @@ async function moveInvoice(id, newStatus){
   inv.updatedAt = new Date().toISOString();
   inv.history = inv.history || [];
   inv.history.push({ status:newStatus, at: inv.updatedAt, label: colByKey[newStatus].title });
-  await dbPut(inv);
-  await loadAll();
-  toast('Status aktualisiert: ' + colByKey[newStatus].title);
+  await dbPut(inv); await loadAll();
+  toast('Verschoben nach: ' + colByKey[newStatus].short);
 }
-
 async function deleteInvoice(id){
   if(!confirm('Diese Rechnung wirklich löschen?')) return;
-  await dbDelete(id);
-  closeModal();
-  await loadAll();
+  await dbDelete(id); closeSheet(); await loadAll();
   toast('Rechnung gelöscht');
 }
 
-/* ---------- Modal: Add / Edit ---------- */
+/* ---------- Sheet-Grundgeruest ---------- */
 const overlay = document.getElementById('overlay');
-const modal = document.getElementById('modal');
-let pendingFile = null; // {dataURL, name, type}
+const sheet   = document.getElementById('sheet');
+let pendingFile = null;
 
-function closeModal(){ overlay.classList.remove('open'); modal.innerHTML=''; pendingFile=null; }
-overlay.addEventListener('click', e=>{ if(e.target === overlay) closeModal(); });
+function openSheet(html){
+  sheet.innerHTML = `<div class="sheet-grip"></div>` + html;
+  overlay.classList.add('open');
+  document.body.classList.add('locked');
+}
+function closeSheet(){
+  overlay.classList.remove('open');
+  document.body.classList.remove('locked');
+  sheet.innerHTML = ''; pendingFile = null;
+}
+overlay.addEventListener('click', e=>{ if(e.target === overlay) closeSheet(); });
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && overlay.classList.contains('open')) closeSheet(); });
 
-document.getElementById('btnAdd').addEventListener('click', ()=> openModal(null));
-
-function statusOptions(selected){
-  return COLUMNS.map(c=> `<option value="${c.key}" ${c.key===selected?'selected':''}>${c.title}</option>`).join('');
+/* ---------- Verschieben-Sheet: der Touch-Ersatz fuer Drag & Drop ---------- */
+function openMoveSheet(id){
+  const inv = invoices.find(i=> i.id === id);
+  if(!inv) return;
+  openSheet(`
+    <div class="sheet-head">
+      <h2>Verschieben</h2>
+      <button class="info-btn" data-info="move" aria-label="Hilfe">i</button>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="field"><label>${escapeHTML(inv.title || 'Ohne Bezeichnung')}</label></div>
+      <div class="statuslist">
+        ${COLUMNS.map(c=>`
+          <button type="button" data-status="${c.key}" style="--sc:${c.c};--sbg:${c.bg}"
+                  aria-current="${c.key===inv.status}">
+            ${escapeHTML(c.title)}${c.key===inv.status?'<span class="tick">✓ aktuell</span>':''}
+          </button>`).join('')}
+      </div>
+    </div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelectorAll('[data-status]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const s = b.dataset.status;
+      closeSheet();
+      if(s !== inv.status) await moveInvoice(id, s);
+    });
+  });
 }
 
-function openModal(id){
-  const inv = id ? invoices.find(i=> i.id===id) : null;
+/* ---------- Menue-Sheet ---------- */
+document.getElementById('btnMenu').addEventListener('click', ()=>{
+  openSheet(`
+    <div class="sheet-head"><h2>Menü</h2><button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <div class="statuslist">
+        <button type="button" id="mExport" style="--sc:#2563eb">⬇ Sichern (JSON-Backup)</button>
+        <button type="button" id="mImport" style="--sc:#0891b2">⬆ Wiederherstellen</button>
+        <button type="button" class="info-btn-row" data-info="privacy" style="--sc:#16a34a">🔒 Wo liegen meine Daten?</button>
+        <button type="button" data-info="ocr" style="--sc:#7c3aed">🔍 Wie funktioniert die Erkennung?</button>
+        <button type="button" data-info="erstattung" style="--sc:#d97706">💶 Wird das erstattet?</button>
+      </div>
+      <div id="menuInfo" style="margin-top:14px;font-size:13.5px;line-height:1.55;color:#334155"></div>
+      <input type="file" id="importFile" accept="application/json" hidden>
+    </div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  /* Im Menue werden die Texte inline eingeblendet statt als Popover –
+     auf kleinen Screens ist das die ruhigere Variante. */
+  sheet.querySelectorAll('[data-info]').forEach(b=>{
+    b.addEventListener('click', e=>{
+      e.stopPropagation();
+      document.getElementById('menuInfo').innerHTML = INFO[b.dataset.info] || '';
+    });
+  });
+  sheet.querySelector('#mExport').addEventListener('click', exportBackup);
+  const fi = sheet.querySelector('#importFile');
+  sheet.querySelector('#mImport').addEventListener('click', ()=> fi.click());
+  fi.addEventListener('change', importBackup);
+});
+
+/* ---------- Editor-Sheet ---------- */
+document.getElementById('btnAdd').addEventListener('click', ()=> openEditor(null));
+
+function openEditor(id, presetStatus){
+  const inv = id ? invoices.find(i=> i.id === id) : null;
   pendingFile = inv ? { dataURL: inv.fileData, name: inv.fileName, type: inv.fileType } : null;
 
-  modal.innerHTML = `
-    <h2>${inv ? 'Rechnung bearbeiten' : 'Neue Rechnung'}</h2>
-    <div class="field">
-      <label>Bezeichnung (z. B. „Dr. Müller – Kontrolle“ oder „Apotheke Hauptplatz“)</label>
-      <input type="text" id="f-title" value="${inv ? escapeHTML(inv.title) : ''}" placeholder="Bezeichnung">
+  openSheet(`
+    <div class="sheet-head">
+      <h2>${inv ? 'Rechnung bearbeiten' : 'Neue Rechnung'}</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button>
     </div>
-    <div class="row2">
+    <div class="sheet-body">
       <div class="field">
-        <label>Betrag (€)</label>
-        <input type="number" step="0.01" id="f-amount" value="${inv ? inv.amount : ''}" placeholder="0,00">
+        <label>Bezeichnung</label>
+        <input type="text" id="f-title" value="${inv ? escapeHTML(inv.title) : ''}" placeholder="z. B. Dr. Müller – Kontrolle">
+      </div>
+      <div class="row2">
+        <div class="field"><label>Betrag (€)</label>
+          <input type="number" inputmode="decimal" step="0.01" id="f-amount" value="${inv ? inv.amount : ''}" placeholder="0,00"></div>
+        <div class="field"><label>Datum</label>
+          <input type="date" id="f-date" value="${inv ? inv.date : new Date().toISOString().slice(0,10)}"></div>
       </div>
       <div class="field">
-        <label>Rechnungsdatum</label>
-        <input type="date" id="f-date" value="${inv ? inv.date : new Date().toISOString().slice(0,10)}">
+        <label>Status</label>
+        <select id="f-status">${COLUMNS.map(c=>
+          `<option value="${c.key}" ${c.key===(inv?inv.status:(presetStatus||'bezahlt'))?'selected':''}>${escapeHTML(c.title)}</option>`).join('')}</select>
       </div>
-    </div>
-    <div class="field">
-      <label>Status</label>
-      <select id="f-status">${statusOptions(inv ? inv.status : 'bezahlt')}</select>
-    </div>
-    <div class="field">
-      <label>Notiz</label>
-      <textarea id="f-note" placeholder="z. B. Belegnummer, Ansprechpartner, Frist ...">${inv ? escapeHTML(inv.note||'') : ''}</textarea>
-    </div>
-    <div class="field">
-      <label>Angehängte Datei</label>
-      <div class="filedrop" id="filedrop">
-        <input type="file" id="f-file" style="display:none" accept="application/pdf,image/*">
-        <span id="filedrop-label">${pendingFile ? '📎 ' + escapeHTML(pendingFile.name) + ' — klicken zum Ersetzen' : 'Klicken oder Datei hierher ziehen (PDF / Bild)'}</span>
+      <div class="field">
+        <label>Beleg <button class="info-btn" data-info="ocr" aria-label="Wie funktioniert die Erkennung?">i</button></label>
+        <div class="filepick">
+          <button type="button" id="btnCam"><span class="ic">📷</span>Foto aufnehmen</button>
+          <button type="button" id="btnFile"><span class="ic">📄</span>Datei wählen</button>
+        </div>
+        <input type="file" id="f-cam"  accept="image/*" capture="environment" hidden>
+        <input type="file" id="f-file" accept="application/pdf,image/*" hidden>
+        <div id="filechipWrap"></div>
+        <div id="analyze-status"></div>
+        <div class="preview" id="preview"></div>
       </div>
-      <div id="analyze-status"></div>
-      <div class="preview" id="preview"></div>
-    </div>
-    ${inv ? renderHistory(inv) : ''}
-    <div class="modal-actions">
-      <div>${inv ? `<button class="danger" id="btnDelete">Löschen</button>` : ''}</div>
-      <div class="right">
-        <button class="ghost" id="btnCancel">Abbrechen</button>
-        <button class="primary" id="btnSave">Speichern</button>
+      <div class="field">
+        <label>Notiz</label>
+        <textarea id="f-note" placeholder="z. B. Belegnummer, Frist ...">${inv ? escapeHTML(inv.note||'') : ''}</textarea>
       </div>
+      ${inv ? renderHistory(inv) : ''}
     </div>
-  `;
-  overlay.classList.add('open');
-  renderPreview();
+    <div class="sheet-foot">
+      ${inv ? `<button class="danger" id="btnDelete">Löschen</button>` : ''}
+      <button class="primary grow" id="btnSave">Speichern</button>
+    </div>`);
 
-  const fd = document.getElementById('filedrop');
-  const fi = document.getElementById('f-file');
-  fd.addEventListener('click', ()=> fi.click());
-  fi.addEventListener('change', async ()=>{
-    if(fi.files[0]) await setPendingFile(fi.files[0]);
-  });
-  ['dragenter','dragover'].forEach(evt=> fd.addEventListener(evt, e=>{ e.preventDefault(); fd.classList.add('hover'); }));
-  fd.addEventListener('dragleave', ()=> fd.classList.remove('hover'));
-  fd.addEventListener('drop', async e=>{
-    e.preventDefault(); fd.classList.remove('hover');
-    if(e.dataTransfer.files[0]) await setPendingFile(e.dataTransfer.files[0]);
-  });
+  renderFileChip(); renderPreview();
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  const cam = sheet.querySelector('#f-cam'), fil = sheet.querySelector('#f-file');
+  sheet.querySelector('#btnCam').addEventListener('click', ()=> cam.click());
+  sheet.querySelector('#btnFile').addEventListener('click', ()=> fil.click());
+  [cam, fil].forEach(input=> input.addEventListener('change', async ()=>{
+    if(input.files[0]) await setPendingFile(input.files[0]);
+  }));
+  sheet.querySelector('#btnSave').addEventListener('click', ()=> saveEditor(id));
+  if(inv) sheet.querySelector('#btnDelete').addEventListener('click', ()=> deleteInvoice(id));
+}
 
-  document.getElementById('btnCancel').addEventListener('click', closeModal);
-  document.getElementById('btnSave').addEventListener('click', ()=> saveModal(id));
-  if(inv) document.getElementById('btnDelete').addEventListener('click', ()=> deleteInvoice(id));
+function renderFileChip(){
+  const wrap = document.getElementById('filechipWrap');
+  if(!wrap) return;
+  if(!pendingFile || !pendingFile.name){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `<div class="filechip"><span>📎</span><span class="nm">${escapeHTML(pendingFile.name)}</span>
+    <button type="button" id="btnOpenFile" style="min-height:34px;padding:6px 12px;font-size:13px">Öffnen</button></div>`;
+  const b = document.getElementById('btnOpenFile');
+  if(b) b.addEventListener('click', ()=>{
+    const url = dataURLtoBlobURL(pendingFile.dataURL, pendingFile.type);
+    if(url) window.open(url, '_blank');
+    else toast('Datei kann nicht geöffnet werden');
+  });
+}
+function renderPreview(){
+  const p = document.getElementById('preview');
+  if(!p) return;
+  if(pendingFile && pendingFile.type && pendingFile.type.startsWith('image/')){
+    p.innerHTML = `<img src="${pendingFile.dataURL}" alt="Vorschau des Belegs">`;
+  } else p.innerHTML = '';   /* PDFs nicht inline – auf Android rendert das nicht */
 }
 
 async function setPendingFile(file){
-  const dataURL = await fileToDataURL(file);
-  pendingFile = { dataURL, name: file.name, type: file.type };
-  document.getElementById('filedrop-label').textContent = '📎 ' + file.name + ' — klicken zum Ersetzen';
-  renderPreview();
+  pendingFile = { dataURL: await fileToDataURL(file), name: file.name, type: file.type };
+  renderFileChip(); renderPreview();
 
   const statusEl = document.getElementById('analyze-status');
-  if(statusEl){ statusEl.className=''; statusEl.textContent = '🔍 Rechnung wird lokal analysiert …'; }
+  if(statusEl){ statusEl.className=''; statusEl.textContent = '🔍 Beleg wird lokal analysiert …'; }
   const result = await analyzeInvoiceFile(file);
-  if(!statusEl) return; // Modal ggf. inzwischen geschlossen
+  const el = document.getElementById('analyze-status');
+  if(!el) return;   /* Sheet wurde inzwischen geschlossen */
   if(result && (result.amount != null || result.date || result.issuer)){
-    statusEl.className = 'ok';
-    statusEl.textContent = '✓ automatisch erkannt – bitte prüfen';
-    const amountEl = document.getElementById('f-amount');
-    const dateEl = document.getElementById('f-date');
-    const titleEl = document.getElementById('f-title');
-    if(amountEl && !amountEl.value && result.amount != null) amountEl.value = result.amount;
-    if(dateEl && result.date) dateEl.value = result.date;
-    if(titleEl && !titleEl.value && result.issuer) titleEl.value = result.issuer;
-  } else {
-    statusEl.textContent = 'Keine automatische Erkennung möglich – bitte manuell ausfüllen.';
-  }
-}
-
-function renderPreview(){
-  const p = document.getElementById('preview');
-  if(!pendingFile){ p.innerHTML=''; return; }
-  const link = `<div style="margin-top:6px;"><a href="${pendingFile.dataURL}" download="${escapeHTML(pendingFile.name)}">⬇ ${escapeHTML(pendingFile.name)} herunterladen</a></div>`;
-  if(pendingFile.type && pendingFile.type.startsWith('image/')){
-    p.innerHTML = `<img src="${pendingFile.dataURL}" alt="Vorschau">` + link;
-  } else if(pendingFile.type === 'application/pdf'){
-    p.innerHTML = `<iframe src="${pendingFile.dataURL}"></iframe>` + link;
-  } else {
-    p.innerHTML = link;
-  }
+    el.className = 'ok';
+    el.textContent = '✓ automatisch erkannt – bitte prüfen';
+    const a = document.getElementById('f-amount'), d = document.getElementById('f-date'), t = document.getElementById('f-title');
+    if(a && !a.value && result.amount != null) a.value = result.amount;
+    if(d && result.date) d.value = result.date;
+    if(t && !t.value && result.issuer) t.value = result.issuer;
+  } else el.textContent = 'Keine automatische Erkennung möglich – bitte manuell ausfüllen.';
 }
 
 function renderHistory(inv){
-  const items = (inv.history||[]).slice().reverse().map(h=>
-    `<li><span>${escapeHTML(h.label)}</span><b>${fmtDateTime(h.at)}</b></li>`
-  ).join('');
-  return `<div class="history"><h3>Verlauf (Nachvollziehbarkeit)</h3><ul>${items || '<li>Kein Verlauf</li>'}</ul></div>`;
+  const items = (inv.history||[]).slice().reverse()
+    .map(h=> `<li><span>${escapeHTML(h.label)}</span><b>${fmtDateTime(h.at)}</b></li>`).join('');
+  return `<div class="history"><h3>Verlauf</h3><ul>${items || '<li>Kein Verlauf</li>'}</ul></div>`;
 }
 
-async function saveModal(id){
-  const title = document.getElementById('f-title').value.trim() || 'Ohne Bezeichnung';
+async function saveEditor(id){
+  const title  = document.getElementById('f-title').value.trim() || 'Ohne Bezeichnung';
   const amount = document.getElementById('f-amount').value;
-  const date = document.getElementById('f-date').value;
+  const date   = document.getElementById('f-date').value;
   const status = document.getElementById('f-status').value;
-  const note = document.getElementById('f-note').value;
-  const now = new Date().toISOString();
+  const note   = document.getElementById('f-note').value;
+  const now    = new Date().toISOString();
 
   if(id){
-    const inv = invoices.find(i=> i.id===id);
+    const inv = invoices.find(i=> i.id === id);
     const statusChanged = inv.status !== status;
-    inv.title = title; inv.amount = amount; inv.date = date; inv.note = note;
+    Object.assign(inv, { title, amount, date, note, status, needsReview:false, updatedAt:now });
     if(pendingFile){ inv.fileName = pendingFile.name; inv.fileType = pendingFile.type; inv.fileData = pendingFile.dataURL; }
-    inv.status = status;
-    inv.needsReview = false; // durch manuelles Speichern geprüft/bestätigt
-    inv.updatedAt = now;
     inv.history = inv.history || [];
-    if(statusChanged) inv.history.push({ status, at: now, label: colByKey[status].title });
+    if(statusChanged) inv.history.push({ status, at:now, label: colByKey[status].title });
     await dbPut(inv);
   } else {
-    const rec = {
+    await dbPut({
       id: uid(), title, amount, date, note, status,
       fileName: pendingFile ? pendingFile.name : '',
       fileType: pendingFile ? pendingFile.type : '',
       fileData: pendingFile ? pendingFile.dataURL : '',
-      createdAt: now, updatedAt: now, needsReview: false,
-      history: [{ status, at: now, label: colByKey[status].title }]
-    };
-    await dbPut(rec);
+      createdAt:now, updatedAt:now, needsReview:false,
+      history:[{ status, at:now, label: colByKey[status].title }]
+    });
   }
-  closeModal();
-  await loadAll();
+  closeSheet(); await loadAll();
+  const idx = COLUMNS.findIndex(c=> c.key === status);
+  if(idx >= 0) scrollToCol(idx);
   toast('Gespeichert');
 }
 
-/* ---------- Export / Import ---------- */
-document.getElementById('btnExport').addEventListener('click', async ()=>{
+/* ---------- Sichern / Wiederherstellen ---------- */
+async function exportBackup(){
   const data = await dbAll();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
@@ -725,38 +978,63 @@ document.getElementById('btnExport').addEventListener('click', async ()=>{
   a.download = 'rechnungs-tracker-backup-' + new Date().toISOString().slice(0,10) + '.json';
   a.click();
   toast('Backup heruntergeladen');
-});
-
-document.getElementById('btnImportTrigger').addEventListener('click', ()=> document.getElementById('importFile').click());
-document.getElementById('importFile').addEventListener('change', async (e)=>{
+}
+async function importBackup(e){
   const file = e.target.files[0];
   if(!file) return;
   try{
-    const text = await file.text();
-    const data = JSON.parse(text);
+    const data = JSON.parse(await file.text());
     if(!Array.isArray(data)) throw new Error('Ungültiges Format');
-    for(const rec of data){ await dbPut(rec); }
-    await loadAll();
+    for(const rec of data) await dbPut(rec);
+    closeSheet(); await loadAll();
     toast(data.length + ' Rechnung(en) wiederhergestellt');
-  }catch(err){
-    alert('Import fehlgeschlagen: ' + err.message);
-  }
+  }catch(err){ alert('Import fehlgeschlagen: ' + err.message); }
   e.target.value = '';
+}
+
+/* Layoutwechsel Desktop <-> Mobil: Karten neu aufbauen (draggable aendert sich) */
+let wasDesktop = isDesktop();
+window.addEventListener('resize', ()=>{
+  if(isDesktop() !== wasDesktop){ wasDesktop = isDesktop(); render(); }
 });
 
-/* ---------- Init ---------- */
+/* ---------- Start ---------- */
 openDB().then(loadAll);
 
-/* ---------- Service Worker ---------- */
-/* Laeuft nur unter https:// oder localhost. Unter file:// oder http://<LAN-IP>
-   registriert der Browser keinen SW – die App funktioniert dann trotzdem,
-   nur ohne Offline-Cache und ohne Installier-Prompt. */
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .catch(err => console.warn('Service Worker nicht registriert:', err));
+/* ---------- Service Worker inklusive Update-Hinweis ----------
+   Laeuft nur unter https:// oder localhost. Meldet sich ein neuer
+   Service Worker an, erscheint unten ein Banner statt eines stillen
+   Wechsels – so bekommt das Handy neue Versionen ohne Handarbeit. */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', async ()=>{
+    try{
+      const reg = await navigator.serviceWorker.register('./sw.js');
+      if(navigator.serviceWorker.controller){
+        reg.addEventListener('updatefound', ()=>{
+          const nw = reg.installing;
+          if(!nw) return;
+          nw.addEventListener('statechange', ()=>{
+            if(nw.state === 'installed') document.getElementById('updatebar').classList.add('show');
+          });
+        });
+      }
+      document.addEventListener('visibilitychange', ()=>{
+        if(document.visibilityState === 'visible') reg.update().catch(()=>{});
+      });
+    }catch(err){ console.warn('Service Worker nicht registriert:', err); }
+  });
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(reloading) return; reloading = true; location.reload();
   });
 }
+document.getElementById('btnUpdate').addEventListener('click', ()=>{
+  document.getElementById('updatebar').classList.remove('show');
+  navigator.serviceWorker.getRegistration().then(reg=>{
+    if(reg && reg.waiting) reg.waiting.postMessage('skipWaiting');
+    else location.reload();
+  });
+});
 </script>
 </body>
 </html>

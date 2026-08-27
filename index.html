@@ -363,6 +363,94 @@ button:disabled{ opacity:.5; }
 .stat.late{ border-color:#fdba74; background:#fff7ed; }
 .stat.late .n{ color:#9a3412; }
 
+/* Hauptnavigation zwischen den zwei Modulen */
+.mainnav{
+  display:flex; gap:6px; padding:8px calc(12px + var(--sar)) 0 calc(12px + var(--sal));
+  background:var(--bg);
+}
+.mainbtn{
+  flex:1; min-height:42px; border-radius:10px; font-size:14px; font-weight:700;
+  background:#fff; color:var(--sub); border:1px solid var(--line);
+}
+.mainbtn[aria-selected="true"]{ background:var(--ink); color:#fff; border-color:var(--ink); }
+
+/* Erkannt-Kasten (Teilen-Triage, Polizzen-Analyse) */
+.erkannt{
+  background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:11px 13px;
+  font-size:13px; line-height:1.5;
+}
+.erkannt b{ display:block; color:#1e3a8a; margin-bottom:3px; font-size:14px; }
+.erkannt span{ color:#1e40af; }
+
+/* Deckungs-Ansicht */
+#view-deckung{ padding:10px calc(12px + var(--sar)) 96px calc(12px + var(--sal)); }
+.leer{
+  background:#fff; border:1.5px dashed var(--line); border-radius:14px;
+  padding:28px 20px; text-align:center;
+}
+.leer.klein{ padding:20px 16px; }
+.leer-ic{ font-size:40px; margin-bottom:6px; }
+.leer h2{ font-size:17px; margin:0 0 8px; }
+.leer p{ font-size:13.5px; color:var(--sub); line-height:1.55; margin:0 0 16px; }
+.leer button{ width:100%; margin-bottom:8px; }
+
+.polhead{
+  display:flex; align-items:center; gap:10px; background:#0f172a; color:#fff;
+  border-radius:12px; padding:13px 15px; margin-bottom:12px;
+}
+.polhead div{ flex:1; min-width:0; }
+.polhead b{ display:block; font-size:15px; }
+.polhead span{ font-size:12px; color:#cbd5e1; }
+.polhead .icon-btn{ background:rgba(255,255,255,.15); border-color:transparent; color:#fff; }
+
+.lcard{
+  display:block; width:100%; text-align:left; background:#fff; border:1px solid var(--line);
+  border-radius:12px; padding:13px 14px; margin-bottom:10px; min-height:0;
+}
+.lcard.warn{ border-color:#fdba74; background:#fff7ed; }
+.lcard.voll{ border-color:#fecaca; background:#fef2f2; }
+.lhead{ display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+.lic{ font-size:19px; }
+.lname{ font-weight:800; font-size:15px; flex:1; min-width:0; }
+.lbadge{ font-size:10.5px; font-weight:800; border-radius:20px; padding:3px 9px; }
+.lbadge.warn{ background:#fed7aa; color:#9a3412; }
+.lbadge.voll{ background:#fecaca; color:#991b1b; }
+.lbar{ height:9px; background:#e2e8f0; border-radius:9px; overflow:hidden; margin-bottom:7px; }
+.lbar span{ display:block; height:100%; background:var(--blue); border-radius:9px; }
+.lcard.warn .lbar span{ background:#f97316; }
+.lcard.voll .lbar span{ background:#dc2626; }
+.lzahlen{ display:flex; justify-content:space-between; gap:10px; font-size:13px; color:var(--sub); }
+.lzahlen b{ color:var(--ink); font-size:14px; }
+.lmeta{ font-size:11.5px; color:#94a3b8; margin-top:5px; }
+
+.vorschlag{
+  display:flex; gap:10px; align-items:flex-start; background:#fff; border:1px solid var(--line);
+  border-radius:10px; padding:11px 12px; margin-bottom:8px; cursor:pointer;
+}
+.vorschlag input{ width:22px; height:22px; margin-top:2px; flex:none; }
+.vorschlag b{ display:block; font-size:14px; margin-bottom:2px; }
+.vlimit{ display:block; font-size:12.5px; color:var(--blue); font-weight:700; }
+.vquelle{ display:block; font-size:11px; color:#94a3b8; margin-top:4px; font-style:italic; }
+
+.vliste{ list-style:none; margin:10px 0 0; padding:0; }
+.vliste li{
+  display:flex; align-items:center; gap:9px; padding:9px 11px; margin-bottom:6px;
+  background:#f8fafc; border-radius:9px; font-size:13px;
+}
+.vliste li span{ flex:1; min-width:0; color:var(--sub); }
+.vliste li b{ color:var(--ink); white-space:nowrap; }
+
+.disclaimer{
+  font-size:12px; line-height:1.55; color:#92400e; background:#fffbeb;
+  border:1px solid #fde68a; border-radius:10px; padding:11px 13px; margin:14px 0 0;
+}
+
+@media (min-width:768px){
+  .lcard{ font-size:15px; }
+  #view-deckung{ max-width:720px; margin:0 auto; }
+  .mainnav{ max-width:720px; margin:0 auto; }
+}
+
 .history{ margin-top:6px; border-top:1px solid var(--line); padding-top:14px; }
 .history h3{ font-size:13px; margin:0 0 8px; color:var(--sub); }
 .history ul{ list-style:none; margin:0; padding:0; font-size:13px; }
@@ -429,15 +517,25 @@ button:disabled{ opacity:.5; }
   <button class="icon-btn" id="btnMenu" aria-label="Menü">⋯</button>
 </header>
 
-<div class="stats" id="stats"></div>
+<nav class="mainnav" id="mainnav" role="tablist">
+  <button class="mainbtn" data-view="rechnungen" role="tab" aria-selected="true">🧾 Rechnungen</button>
+  <button class="mainbtn" data-view="deckung"    role="tab" aria-selected="false">🛡 Deckung</button>
+</nav>
 
-<div class="tabs" id="tabs" role="tablist"></div>
+<section id="view-rechnungen">
+  <div class="stats" id="stats"></div>
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div class="board" id="board"></div>
+</section>
 
-<div class="board" id="board"></div>
+<section id="view-deckung" hidden>
+  <div id="deckung"></div>
+</section>
 
 <div class="actionbar">
   <span class="grow"></span>
   <button class="primary" id="btnAdd">+ Neue Rechnung</button>
+  <button class="primary" id="btnLeistung" hidden>+ Leistung</button>
 </div>
 
 <div class="overlay" id="overlay">
@@ -578,6 +676,140 @@ function statusRelevant(weg, key){
   return WEGE[weg] ? WEGE[weg].steps.some(s=> s.status === key) : true;
 }
 
+/* ==================================================================
+   MODUL 2: DECKUNG
+   Welche Leistungen deckt meine private Krankenversicherung, mit
+   welchem Limit, und wie viel davon ist dieses Jahr schon weg?
+   Die Versicherer-Apps zeigen das nicht – deshalb hier.
+   ================================================================== */
+
+/* Uebliche Toepfe in oesterreichischen Privat-Krankenversicherungen.
+   Dienen als Vorlage und als Suchbegriffe fuer die Polizzen-Analyse. */
+const LEISTUNGS_KATALOG = [
+  { key:'impfungen',      name:'Impfungen',                    icon:'💉', such:['impfung','impfungen','schutzimpfung','vakzin'] },
+  { key:'vorsorge',       name:'Vorsorgeuntersuchung',         icon:'🩺', such:['vorsorge','gesundenuntersuchung','check-up','checkup'] },
+  { key:'wahlarzt',       name:'Wahlarzt / Arzthonorare',      icon:'👨‍⚕️', such:['wahlarzt','arzthonorar','ärztliche behandlung','honorarnote'] },
+  { key:'medikamente',    name:'Medikamente',                  icon:'💊', such:['medikament','arzneimittel','heilmittel'] },
+  { key:'zahnbehandlung', name:'Zahnbehandlung',               icon:'🦷', such:['zahnbehandlung','zahnärztlich','konservierend'] },
+  { key:'zahnersatz',     name:'Zahnersatz',                   icon:'🦷', such:['zahnersatz','prothetik','krone','implantat'] },
+  { key:'sehbehelfe',     name:'Seh- und Hörbehelfe',          icon:'👓', such:['sehbehelf','brille','kontaktlinsen','hörgerät','hörbehelf'] },
+  { key:'heilbehelfe',    name:'Heilbehelfe & Hilfsmittel',    icon:'🩹', such:['heilbehelf','hilfsmittel','bandage','einlagen'] },
+  { key:'physio',         name:'Physiotherapie',               icon:'🤸', such:['physiotherapie','heilgymnastik','physikalische therapie'] },
+  { key:'psychotherapie', name:'Psychotherapie',               icon:'🧠', such:['psychotherapie','psychologisch','klinische psychologie'] },
+  { key:'alternativ',     name:'Komplementärmedizin',          icon:'🌿', such:['komplementär','alternativmedizin','homöopath','akupunktur','tcm'] },
+  { key:'sonderklasse',   name:'Spital Sonderklasse',          icon:'🏥', such:['sonderklasse','anstaltspflege','spitalsaufenthalt','stationär'] },
+  { key:'ambulant',       name:'Ambulante Behandlung',         icon:'🚪', such:['ambulant','tagesklinisch'] },
+  { key:'kur',            name:'Kur & Rehabilitation',         icon:'♨️', such:['kur','rehabilitation','reha'] },
+  { key:'transport',      name:'Krankentransport',             icon:'🚑', such:['krankentransport','rettung','bergung','ambulanz'] },
+  { key:'geburt',         name:'Mutterschaft & Geburt',        icon:'👶', such:['mutterschaft','geburt','entbindung','schwangerschaft'] },
+  { key:'ausland',        name:'Behandlung im Ausland',        icon:'✈️', such:['ausland','auslandsreise','weltweit'] },
+  { key:'sonstiges_l',    name:'Sonstige Leistung',            icon:'📋', such:[] },
+];
+const katalogByKey = Object.fromEntries(LEISTUNGS_KATALOG.map(k=>[k.key,k]));
+
+const LIMIT_TYPEN = {
+  betrag:      { label:'Höchstbetrag in Euro', einheit:'EUR' },
+  anzahl:      { label:'Anzahl pro Zeitraum',  einheit:'Stück' },
+  prozent:     { label:'Prozentsatz der Kosten', einheit:'%' },
+  unbegrenzt:  { label:'Ohne Limit',           einheit:'' },
+};
+const ZEITRAEUME = {
+  jahr:    { label:'pro Versicherungsjahr', monate:12 },
+  drei:    { label:'alle 3 Jahre',          monate:36 },
+  fuenf:   { label:'alle 5 Jahre',          monate:60 },
+  einmalig:{ label:'einmalig',              monate:0 },
+};
+
+/* Betragsmuster in Polizzentexten. Bewusst konservativ – lieber
+   nichts vorschlagen als einen falschen Betrag als Wahrheit setzen. */
+function findeLimitImText(zeile){
+  const t = zeile.replace(/\s+/g,' ');
+  let m = t.match(/(?:bis zu|max(?:imal)?\.?|höchstens|Höchstbetrag(?:\s*von)?)[^\d%]{0,15}(?:EUR|€)\s*([\d.]+(?:,\d{1,2})?)/i)
+       || t.match(/(?:EUR|€)\s*([\d.]+(?:,\d{1,2})?)[,.\-\s]*(?:pro|je|p\.a\.|jährlich|im\s+Jahr|alle\s+\d+\s*Jahre|innerhalb)/i);
+  if(m){
+    const v = parseFloat(m[1].replace(/\./g,'').replace(',','.'));
+    if(!isNaN(v) && v > 0 && v < 1000000) return { typ:'betrag', wert:v };
+  }
+  m = t.match(/(\d{1,3})\s*%/);
+  if(m){
+    const v = parseInt(m[1],10);
+    if(v > 0 && v <= 100) return { typ:'prozent', wert:v };
+  }
+  m = t.match(/(\d{1,2})\s*(?:mal|x|Sitzungen|Behandlungen|Stück)/i);
+  if(m){
+    const v = parseInt(m[1],10);
+    if(v > 0 && v < 200) return { typ:'anzahl', wert:v };
+  }
+  return null;
+}
+function findeZeitraum(zeile){
+  const t = zeile.toLowerCase();
+  if(/alle\s*(?:drei|3)\s*jahre|3-jahres/.test(t)) return 'drei';
+  if(/alle\s*(?:fünf|5)\s*jahre|5-jahres/.test(t)) return 'fuenf';
+  if(/einmalig|einmal\s+pro\s+vertrag/.test(t))    return 'einmalig';
+  return 'jahr';
+}
+
+/* Polizzentext durchgehen und Leistungsvorschlaege bauen.
+   Ergebnis sind VORSCHLAEGE – bestaetigt werden sie vom Nutzer. */
+function analysierePolizze(text){
+  const zeilen = String(text||'').split(/\r?\n/).map(z=> z.trim()).filter(z=> z.length > 3);
+  const gefunden = [];
+  const gesehen  = new Set();
+
+  zeilen.forEach((z, i)=>{
+    const lower = z.toLowerCase();
+    for(const kat of LEISTUNGS_KATALOG){
+      if(!kat.such.length || gesehen.has(kat.key)) continue;
+      if(!kat.such.some(s=> lower.includes(s))) continue;
+      /* Limit in dieser oder den beiden folgenden Zeilen suchen */
+      const kontext = [z, zeilen[i+1]||'', zeilen[i+2]||''].join(' ');
+      const limit   = findeLimitImText(kontext);
+      gefunden.push({
+        key: kat.key, name: kat.name, icon: kat.icon,
+        limitTyp: limit ? limit.typ : 'unbegrenzt',
+        limit:    limit ? limit.wert : 0,
+        zeitraum: findeZeitraum(kontext),
+        quelle:   z.slice(0,140),
+        sicher:   !!limit,
+      });
+      gesehen.add(kat.key);
+      break;
+    }
+  });
+  return gefunden;
+}
+
+/* ---- Berechnung: was ist verbraucht, was bleibt ---- */
+function periodeStart(policy, zeitraum){
+  const heute = new Date();
+  const beginn = policy && policy.beginn ? new Date(policy.beginn) : null;
+  if(zeitraum === 'einmalig') return new Date(2000,0,1);
+  const monate = (ZEITRAEUME[zeitraum]||ZEITRAEUME.jahr).monate;
+  if(!beginn){
+    /* Ohne Polizzenbeginn: Kalenderjahr, bzw. n Jahre zurueck */
+    return new Date(heute.getFullYear() - (monate/12 - 1), 0, 1);
+  }
+  /* Versicherungsjahr: letzter Jahrestag des Beginns */
+  const anker = new Date(beginn);
+  anker.setFullYear(heute.getFullYear());
+  if(anker > heute) anker.setFullYear(heute.getFullYear() - 1);
+  anker.setMonth(anker.getMonth() - (monate - 12));
+  return anker;
+}
+function verbrauchFuer(leistung, policy, alleUsage){
+  const ab = periodeStart(policy, leistung.zeitraum);
+  const rel = alleUsage.filter(u=> u.leistungId === leistung.id && new Date(u.datum) >= ab);
+  const summe = rel.reduce((s,u)=> s + (Number(u.betrag)||0), 0);
+  const anzahl = rel.reduce((s,u)=> s + (Number(u.menge)||1), 0);
+  return { ab, eintraege: rel, summe, anzahl,
+           genutzt: leistung.limitTyp === 'anzahl' ? anzahl : summe };
+}
+function restVon(leistung, v){
+  if(leistung.limitTyp === 'unbegrenzt' || leistung.limitTyp === 'prozent') return null;
+  return Math.max(0, Number(leistung.limit||0) - v.genutzt);
+}
+
 const HINWEISE = [
   { t:'Belege aufbewahren', d:'Original-Rechnungen und ÖGK-Bestätigungen bis zur vollständigen Erstattung sicher verwahren – Fristen bis zu 3 Jahre.' },
   { t:'Nicht alles wird erstattet', d:'Nahrungsergänzungsmittel, Vitaminpräparate, Verhütungsmittel und Kosmetik sind meist ausgeschlossen.' },
@@ -594,6 +826,7 @@ const INFO = {
   move: '<b>Aktionen zur Karte</b><br>Beleg an die ÖGK- oder Versicherungs-App weitergeben, oder den Status von Hand setzen. Am Desktop funktioniert zusätzlich Ziehen mit der Maus.',
   senden: '<b>Warum „speichern“ und nicht „senden“</b><br>Die ÖGK- und die Generali-App nehmen keine geteilten Dateien entgegen. Sie holen den Beleg stattdessen selbst über ihren eigenen Dateiauswähler – deshalb stehen sie im Teilen-Dialog von Android gar nicht drin.<br><br>Diese App legt den Beleg darum unter einem eindeutigen Namen in <b>Downloads</b> ab. Dort findest du ihn im Auswähler beider Apps als obersten Eintrag.<br><br>Bezeichnung, Datum und Betrag liegen gleichzeitig in der Zwischenablage – für die Formularfelder.<br><br>Das <b>Einreichen selbst bestätigst du dort</b>. Die Anmeldung mit ID Austria bzw. deinem Kundenkonto bleibt bei dir; diese App bekommt deine Zugangsdaten nie zu sehen.',
   teilen: '<b>Teilen</b><br>Für alles andere: Mail an dich selbst, Cloud-Speicher, Nachricht an die Ordination. Für die ÖGK- und Versicherungs-App nimm stattdessen „speichern“ – die stehen im Teilen-Dialog nicht zur Auswahl.',
+  verbrauch: '<b>Wie die App zählt</b><br>Jeder Eintrag zieht vom Limit ab, solange er im aktuellen Zeitraum liegt. Das Versicherungsjahr richtet sich nach dem Beginn in der Polizze – ist keiner hinterlegt, rechnet die App mit dem Kalenderjahr.<br><br>Du kannst Beträge von Hand eintragen oder direkt aus einer erfassten Rechnung übernehmen.<br><br><b>Wichtig:</b> Die App kennt nur, was du ihr sagst. Sie hat keinen Zugang zu deinem Versicherungskonto und weiß nicht, was dort tatsächlich verbucht ist.',
   qr: '<b>QR-Code auf der Rechnung</b><br>Trägt der Beleg einen Zahlungs-QR-Code („Zahlen mit Code“), liest die App Betrag, Empfänger und Referenz exakt daraus – deutlich zuverlässiger als aus dem Bild geraten.<br><br>Ohne Code greift automatisch die Texterkennung.',
   docs: '<b>Warum mehrere Dokumente</b><br>Ein Vorgang braucht je nach Station verschiedene Unterlagen:<br><br><b>Für die ÖGK:</b> Rechnung <i>und</i> Zahlungsnachweis. Der fehlende Zahlungsnachweis ist der häufigste Ablehnungsgrund.<br><br><b>Für die private Versicherung:</b> Rechnung <i>und</i> der ÖGK-Bescheid. Den gibt es erst Wochen später – deshalb wächst die Karte mit dem Vorgang mit.<br><br>Die App prüft vor jedem Upload, ob alles beisammen ist.',
   offen: '<b>Liegezeit</b><br>Zeigt, wie lange der Beleg schon bei der Stelle liegt. Eine Rückmeldung über den Bearbeitungsstand kann diese App nicht abrufen – dafür gibt es für Privatpersonen keine Schnittstelle. Der Zähler erinnert dich nur daran, selbst nachzufragen.',
@@ -632,13 +865,38 @@ const SEND_TARGETS = [
 let db;
 function openDB(){
   return new Promise((resolve,reject)=>{
-    const req = indexedDB.open('rechnungs-tracker', 1);
+    /* Version 2: Polizzen und Leistungsverbrauch kommen dazu.
+       Bestehende invoices bleiben unberuehrt. */
+    const req = indexedDB.open('rechnungs-tracker', 2);
     req.onupgradeneeded = e=>{
       const d = e.target.result;
       if(!d.objectStoreNames.contains('invoices')) d.createObjectStore('invoices', { keyPath:'id' });
+      if(!d.objectStoreNames.contains('policies')) d.createObjectStore('policies', { keyPath:'id' });
+      if(!d.objectStoreNames.contains('usage'))    d.createObjectStore('usage',    { keyPath:'id' });
     };
     req.onsuccess = e=>{ db = e.target.result; resolve(db); };
     req.onerror = e=> reject(e);
+  });
+}
+/* Generischer Zugriff fuer die neuen Stores */
+function stAll(store){
+  return new Promise((resolve,reject)=>{
+    const r = db.transaction(store,'readonly').objectStore(store).getAll();
+    r.onsuccess = ()=> resolve(r.result || []); r.onerror = e=> reject(e);
+  });
+}
+function stPut(store, rec){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(store,'readwrite');
+    tx.objectStore(store).put(rec);
+    tx.oncomplete = ()=>{ markSaved(); resolve(); }; tx.onerror = e=> reject(e);
+  });
+}
+function stDel(store, id){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(store,'readwrite');
+    tx.objectStore(store).delete(id);
+    tx.oncomplete = ()=>{ markSaved(); resolve(); }; tx.onerror = e=> reject(e);
   });
 }
 function dbAll(){
@@ -874,6 +1132,71 @@ async function scanPaymentQR(file){
     }
   }catch(err){ console.warn('QR-Erkennung übersprungen:', err); }
   return null;
+}
+
+/* ==================================================================
+   Was ist das ueberhaupt fuer ein Dokument?
+   Wird beim Teilen aus einer fremden App gebraucht: Eine Honorarnote,
+   ein Kontoauszug und ein ÖGK-Bescheid sehen fuer die App sonst gleich
+   aus. Bewusst nur Stichwortgewichtung – kein Modell, keine Cloud.
+   ================================================================== */
+function klassifiziere(text){
+  const t = String(text||'').toLowerCase();
+  if(t.length < 20) return { kind:'rechnung', score:0, sicher:false };
+  const s = { rechnung:0, zahlungsnachweis:0, oegk_bescheid:0 };
+  const hit = (re, k, w) => { if(re.test(t)) s[k] += w; };
+
+  /* ÖGK-Bescheid – Absender und Vorgangsworte */
+  hit(/österreichische gesundheitskasse|\bögk\b|gesundheitskasse/, 'oegk_bescheid', 4);
+  hit(/kostenerstattung|erstattungsmitteilung|leistungsinformation|mitteilung über/, 'oegk_bescheid', 3);
+  hit(/wir haben (ihnen|für sie)|zur anweisung gebracht|überwiesen wurde/, 'oegk_bescheid', 2);
+  hit(/ablehnung|abgelehnt|keine kostenerstattung|nicht erstattet/, 'oegk_bescheid', 2);
+  hit(/versicherungsnummer|sozialversicherungsnummer/, 'oegk_bescheid', 1);
+
+  /* Zahlungsnachweis – Bank- und Buchungssprache */
+  hit(/kontoauszug|umsatzliste|umsatzübersicht|buchungsbestätigung/, 'zahlungsnachweis', 4);
+  hit(/zahlungsbestätigung|überweisungsbestätigung|einzahlungsbeleg|zahlungsbeleg/, 'zahlungsnachweis', 4);
+  hit(/auftraggeber|empfänger.*iban|valuta|buchungstag|umsatz\b/, 'zahlungsnachweis', 2);
+  hit(/betrag dankend erhalten|bezahlt am|zahlungseingang|saldo/, 'zahlungsnachweis', 2);
+
+  /* Rechnung – Rechnungssprache */
+  hit(/honorarnote|rechnungsnummer|rechnungs-?nr|beleg-?nr/, 'rechnung', 4);
+  hit(/leistungsdatum|behandlungsdatum|ordination|apotheke|zahnarzt/, 'rechnung', 2);
+  hit(/zu zahlen|gesamtbetrag|rechnungsbetrag|endbetrag|zahlbar/, 'rechnung', 2);
+  hit(/uid-?nr|steuernummer|mwst|ust\b/, 'rechnung', 1);
+
+  const best = Object.keys(s).reduce((a,b)=> s[a] >= s[b] ? a : b);
+  return { kind: s[best] > 0 ? best : 'rechnung', score: s[best], sicher: s[best] >= 4, alle: s };
+}
+
+/* Welche vorhandene Karte passt zu diesem Dokument?
+   Nach Plausibilitaet sortiert – entschieden wird vom Nutzer, weil ein
+   ÖGK-Bescheid den Erstattungsbetrag nennt, nicht den Rechnungsbetrag. */
+function passendeKarten(kind, result){
+  const betrag = result && result.amount;
+  const datum  = result && result.date;
+  const text   = ((result && result.rawText) || '').toLowerCase();
+
+  return invoices.map(inv=>{
+    let p = 0;
+    if(inv.status === 'abgeschlossen') p -= 3;
+    /* Rolle passt zum Stand des Vorgangs */
+    if(kind === 'oegk_bescheid'    && ['oegk_eingereicht','oegk_erstattet'].includes(inv.status)) p += 4;
+    if(kind === 'zahlungsnachweis' && inv.status === 'bezahlt') p += 3;
+    /* Betrag exakt */
+    if(betrag != null && inv.amount !== '' && Math.abs(Number(inv.amount) - betrag) < 0.02) p += 5;
+    /* Aussteller taucht im Text auf */
+    const titel = String(inv.title||'').toLowerCase().replace(/[^a-zäöüß ]/g,'').trim();
+    if(titel.length > 4 && text.includes(titel.split(' ')[0])) p += 3;
+    /* Zeitliche Naehe */
+    if(datum && inv.date){
+      const diff = Math.abs(new Date(datum) - new Date(inv.date)) / 86400000;
+      if(diff < 120) p += 2; else if(diff < 365) p += 1;
+    }
+    /* Diese Rolle fehlt der Karte noch */
+    if(!docKinds(inv).has(kind)) p += 2;
+    return { inv, p };
+  }).filter(x=> x.p > 2).sort((a,b)=> b.p - a.p).slice(0,5);
 }
 
 async function analyzeInvoiceFile(file){
@@ -1776,17 +2099,480 @@ async function handleSharedFiles(){
   if(!files.length){ toast('Es kam keine Datei an'); return; }
 
   if(files.length === 1){
-    /* Einzelner Beleg: Editor oeffnen, Datei ist schon dran und wird analysiert. */
-    openEditor(null);
-    await setPendingFile(files[0]);
-    const t = document.getElementById('f-title');
-    if(t && !t.value) t.value = files[0].name.replace(/\.[a-z0-9]+$/i,'');
+    await triageGeteiltesDokument(files[0]);
   } else {
     for(const f of files) await createInvoiceFromFile(f, 'bezahlt');
     await loadAll();
     toast(files.length + ' Belege übernommen – werden analysiert …');
   }
 }
+
+/* Ein einzeln geteiltes Dokument: erst lesen, dann entscheiden.
+   Ohne diesen Schritt landet ein ÖGK-Bescheid als neue "Rechnung"
+   im Board, statt bei der Karte, zu der er gehoert. */
+async function triageGeteiltesDokument(file){
+  openSheet(`
+    <div class="sheet-head"><h2>Dokument wird gelesen …</h2></div>
+    <div class="sheet-body"><p class="hint">Text- und Bilderkennung läuft lokal. Bei Fotos dauert das einen Moment.</p></div>`);
+
+  const result = await analyzeInvoiceFile(file);
+  const klass  = klassifiziere((result && result.rawText) || file.name);
+  const kind   = klass.kind;
+  const treffer = passendeKarten(kind, result);
+
+  const dataURL = await fileToDataURL(file);
+  const neuesDoc = { id: uid(), kind, name: file.name || 'Beleg', type: file.type || '',
+                     data: dataURL, addedAt: new Date().toISOString() };
+
+  openSheet(`
+    <div class="sheet-head"><h2>Dokument empfangen</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <div class="erkannt">
+        <b>${DOCKINDS[kind].icon} Erkannt als: ${escapeHTML(DOCKINDS[kind].label)}</b>
+        <span>${klass.sicher ? 'Eindeutige Merkmale gefunden.' : 'Unsicher – bitte prüfen.'}
+          ${result && result.amount != null ? 'Betrag: ' + fmtEUR(result.amount) + '.' : ''}
+          ${result && result.date ? 'Datum: ' + fmtDate(result.date) + '.' : ''}</span>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Rolle korrigieren</label>
+        <select id="t-kind">${DOCKIND_KEYS.map(k=>
+          `<option value="${k}" ${k===kind?'selected':''}>${escapeHTML(DOCKINDS[k].label)}</option>`).join('')}</select>
+      </div>
+
+      <div class="grouplabel">Wohin gehört das?</div>
+      <div class="statuslist">
+        ${treffer.map(({inv})=>`
+          <button type="button" data-zu="${inv.id}" style="--sc:${colByKey[inv.status].c};--sbg:${colByKey[inv.status].bg}">
+            <span style="flex:1;min-width:0">
+              <b style="display:block">${escapeHTML(inv.title || 'Ohne Bezeichnung')}</b>
+              <span style="font-size:12px;color:#64748b">${fmtDate(inv.date)} · ${fmtEUR(inv.amount)} · ${escapeHTML(colByKey[inv.status].short)}</span>
+            </span>
+          </button>`).join('')}
+        <button type="button" id="t-neu" style="--sc:#2563eb;--sbg:#eff6ff">➕ Neue Rechnung daraus anlegen</button>
+      </div>
+      ${treffer.length ? '' : '<p class="hint">Keine passende bestehende Karte gefunden.</p>'}
+    </div>`);
+
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  const kindSel = sheet.querySelector('#t-kind');
+
+  sheet.querySelectorAll('[data-zu]').forEach(b=> b.addEventListener('click', async ()=>{
+    const inv = invoices.find(i=> i.id === b.dataset.zu);
+    closeSheet();
+    if(!inv) return;
+    neuesDoc.kind = kindSel.value;
+    inv.docs = (inv.docs||[]).concat([neuesDoc]);
+    inv.updatedAt = new Date().toISOString();
+    await dbPut(inv); await loadAll();
+    toast(DOCKINDS[neuesDoc.kind].kurz + ' zu „' + (inv.title||'Rechnung') + '“ gelegt');
+  }));
+
+  sheet.querySelector('#t-neu').addEventListener('click', async ()=>{
+    neuesDoc.kind = kindSel.value;
+    closeSheet();
+    openEditor(null);
+    pendingDocs = [neuesDoc];
+    renderDocs(); renderBedarf();
+    const t = document.getElementById('f-title');
+    const a = document.getElementById('f-amount');
+    const d = document.getElementById('f-date');
+    if(t && !t.value) t.value = (result && result.issuer) || file.name.replace(/\.[a-z0-9]+$/i,'');
+    if(a && result && result.amount != null) a.value = result.amount;
+    if(d && result && result.date) d.value = result.date;
+  });
+}
+
+/* ==================================================================
+   DECKUNGS-ANSICHT
+   ================================================================== */
+let policy = null;      // aktuell einzige Polizze
+let leistungen = [];    // Toepfe der Polizze
+let usage = [];         // Verbrauchseintraege
+
+async function loadDeckung(){
+  const pols = await stAll('policies');
+  policy     = pols[0] || null;
+  leistungen = policy ? (policy.leistungen || []) : [];
+  usage      = await stAll('usage');
+  renderDeckung();
+}
+
+function renderDeckung(){
+  const el = document.getElementById('deckung');
+  if(!policy){
+    el.innerHTML = `
+      <div class="leer">
+        <div class="leer-ic">🛡</div>
+        <h2>Noch keine Polizze hinterlegt</h2>
+        <p>Lade deine Polizze hoch. Die App liest den Text lokal aus und schlägt vor,
+           welche Leistungen mit welchem Limit gedeckt sind. Bestätigen musst du sie selbst –
+           verbindlich ist immer der Vertrag.</p>
+        <button class="primary" id="polUp">📄 Polizze hochladen</button>
+        <button id="polManuell">Ohne Polizze starten</button>
+        <input type="file" id="polFile" accept="application/pdf,image/*" hidden>
+      </div>`;
+    const fi = el.querySelector('#polFile');
+    el.querySelector('#polUp').addEventListener('click', ()=> fi.click());
+    fi.addEventListener('change', async ()=>{ if(fi.files[0]) await polizzeEinlesen(fi.files[0]); });
+    el.querySelector('#polManuell').addEventListener('click', async ()=>{
+      await stPut('policies', { id: uid(), versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[] });
+      await loadDeckung();
+    });
+    return;
+  }
+
+  const heute = new Date();
+  el.innerHTML = `
+    <div class="polhead">
+      <div>
+        <b>${escapeHTML(policy.versicherer || 'Private Krankenversicherung')}</b>
+        <span>${escapeHTML(policy.tarif || 'Tarif nicht angegeben')}${
+          policy.beginn ? ' · Versicherungsjahr ab ' + fmtDate(policy.beginn) : ' · Kalenderjahr'}</span>
+      </div>
+      <button class="icon-btn" id="polEdit" aria-label="Polizze bearbeiten">✎</button>
+    </div>
+
+    ${leistungen.length === 0 ? `
+      <div class="leer klein">
+        <p>Noch keine Leistungen erfasst. Füge sie aus dem Katalog hinzu oder lies die Polizze ein.</p>
+        <button class="primary" id="katalogBtn">Aus Katalog hinzufügen</button>
+      </div>` :
+      leistungen.map(l=> leistungKarte(l)).join('')}
+
+    <p class="disclaimer">⚠ Diese Übersicht ist eine Hilfe zur Selbstkontrolle, keine verbindliche
+      Auskunft. Maßgeblich sind Polizze und Versicherungsbedingungen. Frag im Zweifel bei deinem
+      Versicherer nach, bevor du eine Leistung in Anspruch nimmst.</p>`;
+
+  el.querySelector('#polEdit').addEventListener('click', openPolicySheet);
+  const kb = el.querySelector('#katalogBtn');
+  if(kb) kb.addEventListener('click', openKatalogSheet);
+  el.querySelectorAll('[data-leistung]').forEach(b=>
+    b.addEventListener('click', ()=> openLeistungSheet(b.dataset.leistung)));
+}
+
+function leistungKarte(l){
+  const v    = verbrauchFuer(l, policy, usage);
+  const rest = restVon(l, v);
+  const limitBekannt = l.limitTyp === 'betrag' || l.limitTyp === 'anzahl';
+  const pct  = limitBekannt && l.limit > 0 ? Math.min(100, Math.round(v.genutzt / l.limit * 100)) : 0;
+  const kritisch = limitBekannt && pct >= 80;
+  const voll     = limitBekannt && pct >= 100;
+  const einheit  = l.limitTyp === 'anzahl' ? '' : '€';
+
+  const wert = n => l.limitTyp === 'anzahl' ? n + '×' : fmtEUR(n);
+
+  return `
+    <button class="lcard ${voll?'voll':(kritisch?'warn':'')}" data-leistung="${l.id}" type="button">
+      <div class="lhead">
+        <span class="lic">${l.icon || '📋'}</span>
+        <span class="lname">${escapeHTML(l.name)}</span>
+        ${voll ? '<span class="lbadge voll">aufgebraucht</span>'
+               : (kritisch ? '<span class="lbadge warn">fast aufgebraucht</span>' : '')}
+      </div>
+      ${limitBekannt ? `
+        <div class="lbar"><span style="width:${pct}%"></span></div>
+        <div class="lzahlen">
+          <span><b>${wert(v.genutzt)}</b> verbraucht</span>
+          <span>${rest !== null ? '<b>' + wert(rest) + '</b> übrig' : ''}</span>
+        </div>
+        <div class="lmeta">Limit ${wert(l.limit)} ${escapeHTML(ZEITRAEUME[l.zeitraum].label)}
+          · seit ${fmtDate(v.ab.toISOString().slice(0,10))} · ${v.eintraege.length} Eintrag${v.eintraege.length===1?'':'e'}</div>`
+      : `
+        <div class="lzahlen"><span><b>${fmtEUR(v.summe)}</b> erfasst</span></div>
+        <div class="lmeta">${l.limitTyp === 'prozent'
+            ? l.limit + ' % der Kosten werden ersetzt'
+            : 'Kein Limit hinterlegt'} · ${escapeHTML(ZEITRAEUME[l.zeitraum].label)}</div>`}
+    </button>`;
+}
+
+/* ---------- Polizze einlesen ---------- */
+async function polizzeEinlesen(file){
+  openSheet(`<div class="sheet-head"><h2>Polizze wird gelesen …</h2></div>
+    <div class="sheet-body"><p class="hint">Text- und Bilderkennung läuft lokal auf dem Gerät.
+      Bei gescannten Polizzen dauert das eine Weile.</p></div>`);
+
+  let text = '';
+  try{
+    if(file.type === 'application/pdf'){
+      const pdfjsLib = await getPdfjs();
+      const doc = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+      const teile = [];
+      for(let p=1; p<=Math.min(doc.numPages, 25); p++){
+        const c = await (await doc.getPage(p)).getTextContent();
+        let y=null, line=[];
+        for(const it of c.items){
+          const yy = Math.round(it.transform[5]);
+          if(y===null || Math.abs(yy-y)>2){ if(line.length) teile.push(line.join('')); line=[it.str]; y=yy; }
+          else line.push(it.str);
+        }
+        if(line.length) teile.push(line.join(''));
+      }
+      text = teile.join('\n');
+    } else {
+      const worker = await getTesseractWorker();
+      text = (await worker.recognize(await fileToDataURL(file))).data.text || '';
+    }
+  }catch(err){ console.error('Polizze nicht lesbar:', err); }
+
+  const vorschlaege = analysierePolizze(text);
+  const versicherer = (text.match(/\b(Generali|UNIQA|Merkur|Wiener St[äa]dtische|Allianz|Donau|Helvetia|Zurich|Muki)\b/i)||[])[1] || '';
+  const beginn      = (text.match(/(?:Versicherungsbeginn|Beginn|Vertragsbeginn)[^\d]{0,20}(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/i));
+  const beginnISO   = beginn ? `${beginn[3]}-${beginn[2].padStart(2,'0')}-${beginn[1].padStart(2,'0')}` : '';
+
+  const dataURL = await fileToDataURL(file);
+  zeigePolizzeVorschlaege(vorschlaege, { versicherer, beginn: beginnISO,
+    doc:{ id:uid(), kind:'sonstiges', name:file.name, type:file.type, data:dataURL, addedAt:new Date().toISOString() } });
+}
+
+function zeigePolizzeVorschlaege(vorschlaege, meta){
+  openSheet(`
+    <div class="sheet-head"><h2>Gefundene Leistungen</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <div class="erkannt">
+        <b>${vorschlaege.length} Leistung${vorschlaege.length===1?'':'en'} erkannt</b>
+        <span>Das ist eine Lesehilfe, keine Vertragsauslegung. Prüfe jeden Eintrag gegen deine
+          Polizze und korrigiere ihn – die App rechnet später mit diesen Werten.</span>
+      </div>
+      ${meta.versicherer ? `<p class="hint">Versicherer erkannt: <b>${escapeHTML(meta.versicherer)}</b>${
+        meta.beginn ? ' · Beginn ' + fmtDate(meta.beginn) : ''}</p>` : ''}
+      ${vorschlaege.length ? `
+        <div class="grouplabel">Übernehmen</div>
+        ${vorschlaege.map((v,i)=>`
+          <label class="vorschlag">
+            <input type="checkbox" data-v="${i}" ${v.sicher?'checked':''}>
+            <span>
+              <b>${v.icon} ${escapeHTML(v.name)}</b>
+              <span class="vlimit">${v.limitTyp==='betrag' ? 'bis ' + fmtEUR(v.limit)
+                : v.limitTyp==='prozent' ? v.limit + ' % der Kosten'
+                : v.limitTyp==='anzahl' ? v.limit + '× ' : 'kein Limit erkannt'}
+                ${escapeHTML(ZEITRAEUME[v.zeitraum].label)}</span>
+              <span class="vquelle">„${escapeHTML(v.quelle)}“</span>
+            </span>
+          </label>`).join('')}`
+        : '<p class="hint">Nichts Verwertbares gefunden. Viele Polizzen sind Scans oder Tabellen – füge die Leistungen aus dem Katalog hinzu.</p>'}
+    </div>
+    <div class="sheet-foot">
+      <button id="vKatalog" class="grow">Aus Katalog wählen</button>
+      <button class="primary grow" id="vOk">Übernehmen</button>
+    </div>`);
+
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  const speichern = async (auswahl)=>{
+    const p = policy || { id: uid(), versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[] };
+    if(meta.versicherer && !p.versicherer) p.versicherer = meta.versicherer;
+    if(meta.beginn && !p.beginn)           p.beginn = meta.beginn;
+    if(meta.doc)  p.docs = (p.docs||[]).concat([meta.doc]);
+    p.leistungen = (p.leistungen||[]).concat(auswahl.map(v=>({
+      id: uid(), key:v.key, name:v.name, icon:v.icon,
+      limitTyp:v.limitTyp, limit:v.limit, zeitraum:v.zeitraum, notiz:v.quelle||''
+    })));
+    await stPut('policies', p);
+    closeSheet(); await loadDeckung();
+    toast(auswahl.length + ' Leistung(en) übernommen');
+  };
+  sheet.querySelector('#vOk').addEventListener('click', ()=>{
+    const gewaehlt = [...sheet.querySelectorAll('[data-v]')].filter(c=> c.checked)
+                      .map(c=> vorschlaege[Number(c.dataset.v)]);
+    speichern(gewaehlt);
+  });
+  sheet.querySelector('#vKatalog').addEventListener('click', async ()=>{
+    await speichern([]);
+    openKatalogSheet();
+  });
+}
+
+/* ---------- Katalog: Leistung von Hand hinzufuegen ---------- */
+function openKatalogSheet(){
+  const vorhanden = new Set(leistungen.map(l=> l.key));
+  openSheet(`
+    <div class="sheet-head"><h2>Leistung hinzufügen</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <p class="hint" style="margin-top:0">Wähle einen Topf und trage das Limit aus deiner Polizze ein.</p>
+      <div class="statuslist">
+        ${LEISTUNGS_KATALOG.filter(k=> !vorhanden.has(k.key)).map(k=>`
+          <button type="button" data-kat="${k.key}" style="--sc:#2563eb;--sbg:#eff6ff">
+            <span>${k.icon}</span>${escapeHTML(k.name)}</button>`).join('')}
+      </div>
+    </div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelectorAll('[data-kat]').forEach(b=> b.addEventListener('click', ()=>{
+    const k = katalogByKey[b.dataset.kat];
+    closeSheet();
+    openLeistungSheet(null, { key:k.key, name:k.name, icon:k.icon });
+  }));
+}
+
+/* ---------- Leistung bearbeiten und Verbrauch erfassen ---------- */
+function openLeistungSheet(id, vorlage){
+  const l = id ? leistungen.find(x=> x.id === id)
+              : { id:null, key:(vorlage&&vorlage.key)||'sonstiges_l', name:(vorlage&&vorlage.name)||'',
+                  icon:(vorlage&&vorlage.icon)||'📋', limitTyp:'betrag', limit:0, zeitraum:'jahr', notiz:'' };
+  if(!l) return;
+  const v = id ? verbrauchFuer(l, policy, usage) : { eintraege:[], genutzt:0, summe:0, ab:new Date() };
+
+  openSheet(`
+    <div class="sheet-head"><h2>${l.icon} ${escapeHTML(l.name || 'Neue Leistung')}</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <div class="field"><label>Bezeichnung</label>
+        <input type="text" id="l-name" value="${escapeHTML(l.name)}" placeholder="z. B. Impfungen"></div>
+      <div class="row2">
+        <div class="field"><label>Art des Limits</label>
+          <select id="l-typ">${Object.keys(LIMIT_TYPEN).map(k=>
+            `<option value="${k}" ${k===l.limitTyp?'selected':''}>${escapeHTML(LIMIT_TYPEN[k].label)}</option>`).join('')}</select></div>
+        <div class="field"><label>Wert</label>
+          <input type="number" inputmode="decimal" step="0.01" id="l-limit" value="${l.limit||''}" placeholder="0"></div>
+      </div>
+      <div class="field"><label>Zeitraum</label>
+        <select id="l-zeit">${Object.keys(ZEITRAEUME).map(k=>
+          `<option value="${k}" ${k===l.zeitraum?'selected':''}>${escapeHTML(ZEITRAEUME[k].label)}</option>`).join('')}</select></div>
+      <div class="field"><label>Notiz aus der Polizze</label>
+        <textarea id="l-notiz" placeholder="Wortlaut, Selbstbehalt, Wartezeit …">${escapeHTML(l.notiz||'')}</textarea></div>
+
+      ${id ? `
+        <div class="grouplabel">Verbrauch <button class="info-btn" data-info="verbrauch" aria-label="Wie zählt die App?">i</button></div>
+        <div class="statuslist"><button type="button" id="vAdd" style="--sc:#16a34a;--sbg:#f0fdf4">➕ Verbrauch eintragen</button></div>
+        ${v.eintraege.length ? `<ul class="vliste">${v.eintraege.slice().reverse().map(u=>`
+          <li><span>${fmtDate(u.datum)} · ${escapeHTML(u.titel||'Eintrag')}</span>
+              <b>${l.limitTyp==='anzahl' ? (u.menge||1)+'×' : fmtEUR(u.betrag)}</b>
+              <button type="button" class="docbtn del" data-udel="${u.id}" aria-label="Löschen">✕</button></li>`).join('')}</ul>`
+          : '<p class="hint">Noch nichts erfasst.</p>'}` : ''}
+    </div>
+    <div class="sheet-foot">
+      ${id ? '<button class="danger" id="lDel">Löschen</button>' : ''}
+      <button class="primary grow" id="lSave">Speichern</button>
+    </div>`);
+
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelector('#lSave').addEventListener('click', async ()=>{
+    const neu = {
+      id: l.id || uid(), key: l.key, icon: l.icon,
+      name: sheet.querySelector('#l-name').value.trim() || 'Leistung',
+      limitTyp: sheet.querySelector('#l-typ').value,
+      limit: Number(sheet.querySelector('#l-limit').value) || 0,
+      zeitraum: sheet.querySelector('#l-zeit').value,
+      notiz: sheet.querySelector('#l-notiz').value,
+    };
+    const p = policy || { id: uid(), versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[] };
+    p.leistungen = (p.leistungen||[]).filter(x=> x.id !== neu.id).concat([neu]);
+    await stPut('policies', p);
+    closeSheet(); await loadDeckung(); toast('Gespeichert');
+  });
+  const del = sheet.querySelector('#lDel');
+  if(del) del.addEventListener('click', async ()=>{
+    if(!confirm('Diese Leistung samt Verbrauchseinträgen löschen?')) return;
+    policy.leistungen = policy.leistungen.filter(x=> x.id !== l.id);
+    await stPut('policies', policy);
+    for(const u of usage.filter(u=> u.leistungId === l.id)) await stDel('usage', u.id);
+    closeSheet(); await loadDeckung(); toast('Gelöscht');
+  });
+  const vAdd = sheet.querySelector('#vAdd');
+  if(vAdd) vAdd.addEventListener('click', ()=> openVerbrauchSheet(l));
+  sheet.querySelectorAll('[data-udel]').forEach(b=> b.addEventListener('click', async (e)=>{
+    e.stopPropagation();
+    await stDel('usage', b.dataset.udel);
+    await loadDeckung(); openLeistungSheet(l.id);
+  }));
+}
+
+function openVerbrauchSheet(l){
+  const kandidaten = invoices.filter(i=> i.amount !== '' && i.amount != null)
+                             .sort((a,b)=> (b.date||'').localeCompare(a.date||'')).slice(0,12);
+  openSheet(`
+    <div class="sheet-head"><h2>Verbrauch eintragen</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <div class="field"><label>Bezeichnung</label>
+        <input type="text" id="u-titel" placeholder="z. B. FSME-Impfung"></div>
+      <div class="row2">
+        <div class="field"><label>${l.limitTyp==='anzahl' ? 'Anzahl' : 'Betrag (€)'}</label>
+          <input type="number" inputmode="decimal" step="${l.limitTyp==='anzahl'?'1':'0.01'}" id="u-wert" placeholder="0"></div>
+        <div class="field"><label>Datum</label>
+          <input type="date" id="u-datum" value="${new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      ${kandidaten.length ? `
+        <div class="grouplabel">Oder aus einer Rechnung übernehmen</div>
+        <div class="statuslist">
+          ${kandidaten.map(i=>`<button type="button" data-inv="${i.id}" style="--sc:${colByKey[i.status].c};--sbg:${colByKey[i.status].bg}">
+            <span style="flex:1;min-width:0"><b style="display:block">${escapeHTML(i.title||'Rechnung')}</b>
+            <span style="font-size:12px;color:#64748b">${fmtDate(i.date)} · ${fmtEUR(i.amount)}</span></span></button>`).join('')}
+        </div>` : ''}
+    </div>
+    <div class="sheet-foot"><button class="primary grow" id="uSave">Eintragen</button></div>`);
+
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  const speichern = async (titel, wert, datum, invId)=>{
+    await stPut('usage', { id: uid(), leistungId: l.id, titel, datum,
+      betrag: l.limitTyp==='anzahl' ? 0 : Number(wert)||0,
+      menge:  l.limitTyp==='anzahl' ? Number(wert)||1 : 1,
+      invoiceId: invId || null });
+    closeSheet(); await loadDeckung(); toast('Verbrauch erfasst');
+  };
+  sheet.querySelector('#uSave').addEventListener('click', ()=> speichern(
+    sheet.querySelector('#u-titel').value.trim() || 'Eintrag',
+    sheet.querySelector('#u-wert').value,
+    sheet.querySelector('#u-datum').value, null));
+  sheet.querySelectorAll('[data-inv]').forEach(b=> b.addEventListener('click', ()=>{
+    const i = invoices.find(x=> x.id === b.dataset.inv);
+    if(i) speichern(i.title||'Rechnung', l.limitTyp==='anzahl' ? 1 : i.amount, i.date, i.id);
+  }));
+}
+
+function openPolicySheet(){
+  const p = policy || { id: uid(), versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[] };
+  openSheet(`
+    <div class="sheet-head"><h2>Polizze</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <div class="field"><label>Versicherer</label>
+        <input type="text" id="p-vers" value="${escapeHTML(p.versicherer||'')}" placeholder="z. B. Generali"></div>
+      <div class="field"><label>Tarif</label>
+        <input type="text" id="p-tarif" value="${escapeHTML(p.tarif||'')}" placeholder="Tarifbezeichnung"></div>
+      <div class="field"><label>Versicherungsbeginn</label>
+        <input type="date" id="p-beginn" value="${p.beginn||''}">
+        <p class="hint">Bestimmt, wann das Versicherungsjahr umspringt. Ohne Angabe rechnet die App mit dem Kalenderjahr.</p></div>
+      <div class="grouplabel">Polizze als Datei</div>
+      <div class="statuslist">
+        <button type="button" id="pUp" style="--sc:#2563eb;--sbg:#eff6ff">📄 Polizze einlesen und Leistungen erkennen</button>
+      </div>
+      <input type="file" id="pFile" accept="application/pdf,image/*" hidden>
+      ${(p.docs||[]).length ? `<p class="hint">${p.docs.length} Datei(en) hinterlegt.</p>` : ''}
+    </div>
+    <div class="sheet-foot"><button class="primary grow" id="pSave">Speichern</button></div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  const fi = sheet.querySelector('#pFile');
+  sheet.querySelector('#pUp').addEventListener('click', ()=> fi.click());
+  fi.addEventListener('change', async ()=>{ if(fi.files[0]) await polizzeEinlesen(fi.files[0]); });
+  sheet.querySelector('#pSave').addEventListener('click', async ()=>{
+    p.versicherer = sheet.querySelector('#p-vers').value.trim();
+    p.tarif       = sheet.querySelector('#p-tarif').value.trim();
+    p.beginn      = sheet.querySelector('#p-beginn').value;
+    await stPut('policies', p);
+    closeSheet(); await loadDeckung(); toast('Gespeichert');
+  });
+}
+
+/* ---------- Ansichtswechsel ---------- */
+let currentView = 'rechnungen';
+function setView(v){
+  currentView = v;
+  document.getElementById('view-rechnungen').hidden = (v !== 'rechnungen');
+  document.getElementById('view-deckung').hidden    = (v !== 'deckung');
+  document.getElementById('btnAdd').hidden      = (v !== 'rechnungen');
+  document.getElementById('btnLeistung').hidden = (v !== 'deckung');
+  document.querySelectorAll('.mainbtn').forEach(b=>
+    b.setAttribute('aria-selected', String(b.dataset.view === v)));
+  if(v === 'deckung') loadDeckung();
+}
+document.querySelectorAll('.mainbtn').forEach(b=>
+  b.addEventListener('click', ()=> setView(b.dataset.view)));
+document.getElementById('btnLeistung').addEventListener('click', ()=>{
+  if(!policy){ toast('Erst Polizze anlegen'); return; }
+  openKatalogSheet();
+});
 
 /* ---------- Start ---------- */
 openDB().then(loadAll).then(handleSharedFiles);

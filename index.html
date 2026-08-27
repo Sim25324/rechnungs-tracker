@@ -179,6 +179,9 @@ button:disabled{ opacity:.5; }
 .card .review-tag{
   font-size:11px; background:#fef3c7; color:#92400e; border-radius:6px; padding:3px 7px; font-weight:700;
 }
+.card .wait-tag{
+  font-size:11px; background:#e0e7ff; color:#3730a3; border-radius:6px; padding:3px 7px; font-weight:700;
+}
 .card-move{
   flex:none; width:46px; min-height:var(--tap); border:none; border-left:1px solid var(--line);
   background:#f8fafc; color:var(--sub); font-size:19px; border-radius:0;
@@ -258,6 +261,14 @@ button:disabled{ opacity:.5; }
 }
 .statuslist button[aria-current="true"]{ background:var(--sbg); border-color:var(--sc); }
 .statuslist .tick{ margin-left:auto; color:var(--sc); font-weight:800; }
+.statuslist button:disabled{ opacity:.45; }
+.grouplabel{
+  display:flex; align-items:center; gap:7px;
+  font-size:12px; font-weight:800; color:#64748b; text-transform:uppercase;
+  letter-spacing:.04em; margin:18px 0 8px;
+}
+.grouplabel:first-of-type{ margin-top:4px; }
+.hint{ font-size:12.5px; color:#94a3b8; margin:8px 0 0; }
 
 .history{ margin-top:6px; border-top:1px solid var(--line); padding-top:14px; }
 .history h3{ font-size:13px; margin:0 0 8px; color:var(--sub); }
@@ -365,8 +376,19 @@ const INFO = {
   ocr: '<b>Automatische Erkennung</b><br>Betrag, Datum und Aussteller werden direkt auf dem Gerät aus der Datei gelesen (Texterkennung im Browser, keine Internetverbindung nötig).<br><br>Das ist eine <b>Lesehilfe, keine Garantie</b> – bitte immer kurz prüfen.',
   erstattung: '<b>Wird das erstattet?</b><br>Ob die ÖGK eine Leistung tatsächlich und in welcher Höhe erstattet, kann dieses Tool nicht bestimmen. Das hängt vom genauen Tarifposten ab und muss bei der ÖGK bzw. deiner Versicherung nachgefragt werden.',
   privacy: '<b>Wo liegen meine Daten?</b><br>Ausschließlich auf diesem Gerät (IndexedDB im Browser). Keine Übertragung an einen Server, auch die Dokumentenanalyse läuft offline.<br><br><b>Achtung:</b> „Browserdaten löschen“ kann diese Daten mitlöschen. Deshalb regelmäßig „Sichern“ nutzen.',
-  move: '<b>Karte verschieben</b><br>Auf ⇄ tippen und den neuen Status wählen. Am Desktop funktioniert zusätzlich Ziehen mit der Maus.',
+  move: '<b>Aktionen zur Karte</b><br>Beleg an die ÖGK- oder Versicherungs-App weitergeben, oder den Status von Hand setzen. Am Desktop funktioniert zusätzlich Ziehen mit der Maus.',
+  senden: '<b>Wie das Senden funktioniert</b><br>Die App übergibt den Beleg an Androids Teilen-Dialog. Dort wählst du „Meine ÖGK“ oder deine Versicherungs-App, die Datei landet direkt in deren Upload.<br><br>Das <b>Einreichen selbst bestätigst du dort</b> – die Anmeldung mit ID Austria bzw. deinem Kundenkonto bleibt bei dir. Diese App bekommt deine Zugangsdaten nie zu sehen.<br><br>Bezeichnung, Datum und Betrag liegen gleichzeitig in der Zwischenablage, falls das Formular sie als Text will.',
+  qr: '<b>QR-Code auf der Rechnung</b><br>Trägt der Beleg einen Zahlungs-QR-Code („Zahlen mit Code“), liest die App Betrag, Empfänger und Referenz exakt daraus – deutlich zuverlässiger als aus dem Bild geraten.<br><br>Ohne Code greift automatisch die Texterkennung.',
+  offen: '<b>Liegezeit</b><br>Zeigt, wie lange der Beleg schon bei der Stelle liegt. Eine Rückmeldung über den Bearbeitungsstand kann diese App nicht abrufen – dafür gibt es für Privatpersonen keine Schnittstelle. Der Zähler erinnert dich nur daran, selbst nachzufragen.',
 };
+
+/* Ziele fuer die Weitergabe. Bewusst keine App-Deeplinks: die sind
+   undokumentiert und brechen bei jedem Update. Der System-Teilen-Dialog
+   listet alles auf, was PDFs/Bilder annimmt. */
+const SEND_TARGETS = [
+  { key:'oegk', label:'An ÖGK senden',            icon:'🏛', status:'oegk_eingereicht', stamp:'submittedOegkAt' },
+  { key:'kv',   label:'An private Versicherung',  icon:'🏥', status:'kv_eingereicht',   stamp:'submittedKvAt'   },
+];
 
 /* ---------- IndexedDB ---------- */
 let db;
@@ -423,16 +445,23 @@ function fileToDataURL(file){
     r.readAsDataURL(file);
   });
 }
+function dataURLtoBlob(dataURL, type){
+  const [head, b64] = dataURL.split(',');
+  const mime = type || (head.match(/:(.*?);/)||[])[1] || 'application/octet-stream';
+  const bin = atob(b64); const arr = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type:mime });
+}
 /* Data-URLs sind fuer PDF-Vorschau auf Android unbrauchbar – Blob-URL nutzen. */
 function dataURLtoBlobURL(dataURL, type){
-  try{
-    const [head, b64] = dataURL.split(',');
-    const mime = type || (head.match(/:(.*?);/)||[])[1] || 'application/octet-stream';
-    const bin = atob(b64); const arr = new Uint8Array(bin.length);
-    for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
-    return URL.createObjectURL(new Blob([arr], {type:mime}));
-  }catch(e){ return null; }
+  try{ return URL.createObjectURL(dataURLtoBlob(dataURL, type)); }
+  catch(e){ return null; }
 }
+async function copyToClipboard(text){
+  try{ await navigator.clipboard.writeText(text); return true; }
+  catch(e){ return false; }
+}
+const daysSince = iso => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : null;
 function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
@@ -558,12 +587,75 @@ function extractIssuer(lines){
 function parseInvoiceText(text, lines){
   return { amount: extractAmount(text), date: extractDate(text), issuer: extractIssuer(lines), rawText:text };
 }
-async function analyzeInvoiceFile(file){
+/* ==================================================================
+   QR-Code auf dem Beleg ("Zahlen mit Code", EPC069-12 / Stuzza).
+   Liefert Betrag, Empfaenger und Referenz exakt statt geraten.
+   Faellt still auf OCR zurueck, wenn kein Code da ist oder die
+   BarcodeDetector-API fehlt (z. B. Firefox, aeltere Systeme).
+   ================================================================== */
+function parseEPC(raw){
+  const l = String(raw).split(/\r?\n/);
+  if((l[0]||'').trim().toUpperCase() !== 'BCD') return null;
+  const m = (l[7]||'').trim().match(/^EUR\s*([\d.]+)$/i);
+  const amount = m ? parseFloat(m[1]) : null;
+  return {
+    creditor : (l[5]||'').trim(),
+    iban     : (l[6]||'').trim(),
+    amount   : (amount && amount > 0 && amount < 100000) ? amount : null,
+    reference: (l[9]||'').trim() || (l[10]||'').trim(),
+  };
+}
+async function qrCapable(){
+  if(!('BarcodeDetector' in window)) return false;
+  try{ return (await BarcodeDetector.getSupportedFormats()).includes('qr_code'); }
+  catch(e){ return false; }
+}
+async function pdfFirstPageCanvas(file){
+  const pdfjsLib = await getPdfjs();
+  const doc  = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  const page = await doc.getPage(1);
+  const vp   = page.getViewport({ scale:2 });   // 2x: kleine QR-Codes bleiben lesbar
+  const canvas = document.createElement('canvas');
+  canvas.width = vp.width; canvas.height = vp.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+  return canvas;
+}
+async function scanPaymentQR(file){
   try{
-    if(file.type === 'application/pdf') return await analyzePDF(file);
-    if(file.type && file.type.startsWith('image/')) return await analyzeImage(file);
-  }catch(err){ console.error('Analyse fehlgeschlagen:', err); }
+    if(!await qrCapable()) return null;
+    let source;
+    if(file.type === 'application/pdf')            source = await pdfFirstPageCanvas(file);
+    else if(file.type.startsWith('image/'))        source = await createImageBitmap(file);
+    else return null;
+
+    const codes = await new BarcodeDetector({ formats:['qr_code'] }).detect(source);
+    if(source.close) source.close();
+    for(const c of codes){
+      const p = parseEPC(c.rawValue);
+      if(p && (p.amount != null || p.creditor)) return p;
+    }
+  }catch(err){ console.warn('QR-Erkennung übersprungen:', err); }
   return null;
+}
+
+async function analyzeInvoiceFile(file){
+  let base = null;
+  try{
+    if(file.type === 'application/pdf')            base = await analyzePDF(file);
+    else if(file.type && file.type.startsWith('image/')) base = await analyzeImage(file);
+  }catch(err){ console.error('Analyse fehlgeschlagen:', err); }
+
+  /* QR schlaegt OCR: exakte Werte ueberschreiben geratene. */
+  const qr = await scanPaymentQR(file);
+  if(qr){
+    base = base || { amount:null, date:null, issuer:'', rawText:'' };
+    if(qr.amount   != null) base.amount = qr.amount;
+    if(qr.creditor)         base.issuer = qr.creditor;
+    base.reference = qr.reference || '';
+    base.iban      = qr.iban || '';
+    base.fromQR    = true;
+  }
+  return base;
 }
 
 /* ---------- Zustand und Darstellung ---------- */
@@ -571,7 +663,17 @@ let invoices = [];
 const isDesktop = ()=> window.matchMedia('(min-width:1024px)').matches;
 
 async function loadAll(){ invoices = await dbAll(); render(); }
-function render(){ renderStats(); renderTabs(); renderBoard(); }
+function render(){ renderStats(); renderTabs(); renderBoard(); updateBadge(); }
+
+/* Zahl auf dem App-Icon: was ist bezahlt, aber noch nirgends eingereicht. */
+function updateBadge(){
+  try{
+    const offen = invoices.filter(i=> i.status === 'bezahlt').length;
+    if(!('setAppBadge' in navigator)) return;
+    if(offen > 0) navigator.setAppBadge(offen).catch(()=>{});
+    else navigator.clearAppBadge().catch(()=>{});
+  }catch(e){ /* Badging nicht verfuegbar – unkritisch */ }
+}
 
 function renderStats(){
   const total = invoices.length;
@@ -655,6 +757,16 @@ function renderBoard(){
   syncTabs();
 }
 
+/* Wie lange liegt der Beleg schon bei der jeweiligen Stelle? */
+function liegezeit(inv){
+  const stamp = inv.status === 'oegk_eingereicht' ? inv.submittedOegkAt
+              : inv.status === 'kv_eingereicht'   ? inv.submittedKvAt : null;
+  const d = daysSince(stamp);
+  if(d === null) return '';
+  if(d === 0) return 'heute eingereicht';
+  return 'seit ' + d + ' Tag' + (d === 1 ? '' : 'en');
+}
+
 function renderCard(inv, col){
   const el = document.createElement('div');
   el.className = 'card';
@@ -665,12 +777,13 @@ function renderCard(inv, col){
     <button class="card-main" type="button">
       <span class="title">${escapeHTML(inv.title || 'Ohne Bezeichnung')}</span>
       <span class="meta"><span>${fmtDate(inv.date)}</span><span class="amt">${fmtEUR(inv.amount)}</span></span>
-      ${(inv.fileName || inv.needsReview) ? `<span class="tags">
-        ${inv.fileName ? `<span class="file-tag">📎 ${escapeHTML(inv.fileName)}</span>` : ''}
+      ${(inv.fileName || inv.needsReview || liegezeit(inv)) ? `<span class="tags">
+        ${liegezeit(inv) ? `<span class="wait-tag">⏳ ${liegezeit(inv)}</span>` : ''}
         ${inv.needsReview ? `<span class="review-tag">⚠ prüfen</span>` : ''}
+        ${inv.fileName ? `<span class="file-tag">📎 ${escapeHTML(inv.fileName)}</span>` : ''}
       </span>` : ''}
     </button>
-    <button class="card-move" type="button" aria-label="Status ändern" title="Status ändern">⇄</button>`;
+    <button class="card-move" type="button" aria-label="Aktionen" title="Aktionen">⋮</button>`;
 
   el.querySelector('.card-main').addEventListener('click', ()=> openEditor(inv.id));
   el.querySelector('.card-move').addEventListener('click', e=>{ e.stopPropagation(); openMoveSheet(inv.id); });
@@ -727,6 +840,8 @@ async function analyzeAndFill(id, file){
   if(result.amount != null && (current.amount === '' || current.amount == null)){ current.amount = result.amount; changed = true; }
   if(result.date && !current.date){ current.date = result.date; changed = true; }
   if(result.issuer && current.title === defaultTitle){ current.title = result.issuer; changed = true; }
+  if(result.reference && !current.reference){ current.reference = result.reference; changed = true; }
+  if(result.iban && !current.iban){ current.iban = result.iban; changed = true; }
   if(changed){
     current.needsReview = true;
     current.updatedAt = new Date().toISOString();
@@ -754,10 +869,90 @@ async function deleteInvoice(id){
   toast('Rechnung gelöscht');
 }
 
+/* ==================================================================
+   Beleg an eine fremde App weitergeben (Web Share API Level 2).
+   Absichtlich kein Auto-Status: navigator.share() loest bereits auf,
+   sobald Android die Datei uebergeben hat – ob du im Kassenformular
+   dann wirklich abgeschickt hast, weiss diese App nicht. Deshalb
+   fragt sie danach einmal nach, statt es zu behaupten.
+   ================================================================== */
+function shareSummary(inv){
+  return [
+    inv.title || 'Rechnung',
+    inv.date ? 'Datum: ' + fmtDate(inv.date) : null,
+    (inv.amount !== '' && inv.amount != null) ? 'Betrag: ' + fmtEUR(inv.amount) : null,
+    inv.reference ? 'Referenz: ' + inv.reference : null,
+  ].filter(Boolean).join('\n');
+}
+
+async function sendInvoiceTo(id, targetKey){
+  const inv    = invoices.find(i=> i.id === id);
+  const target = SEND_TARGETS.find(t=> t.key === targetKey);
+  if(!inv || !target) return;
+  if(!inv.fileData){ toast('Kein Beleg angehängt – erst Foto oder PDF hinzufügen'); return; }
+
+  let file;
+  try{
+    file = new File([dataURLtoBlob(inv.fileData, inv.fileType)],
+                    inv.fileName || 'rechnung', { type: inv.fileType || 'application/octet-stream' });
+  }catch(e){ toast('Beleg konnte nicht gelesen werden'); return; }
+
+  const summary = shareSummary(inv);
+
+  if(navigator.canShare && navigator.canShare({ files:[file] })){
+    await copyToClipboard(summary);          // Formularfelder per Einfügen befüllbar
+    try{
+      await navigator.share({ files:[file], title: inv.title || 'Rechnung', text: summary });
+    }catch(err){
+      if(err && err.name === 'AbortError') return;   // Nutzer hat abgebrochen
+      toast('Teilen nicht möglich'); return;
+    }
+    askSubmitted(id, target);
+  } else {
+    /* Desktop und aeltere Browser: Datei herunterladen, Text kopieren. */
+    const url = dataURLtoBlobURL(inv.fileData, inv.fileType);
+    if(url){
+      const a = document.createElement('a');
+      a.href = url; a.download = inv.fileName || 'rechnung';
+      a.click();
+      setTimeout(()=> URL.revokeObjectURL(url), 10000);
+    }
+    await copyToClipboard(summary);
+    toast('Teilen geht hier nicht – Beleg heruntergeladen, Daten kopiert');
+    askSubmitted(id, target);
+  }
+}
+
+function askSubmitted(id, target){
+  openSheet(`
+    <div class="sheet-head"><h2>Eingereicht?</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <p style="margin:0 0 14px;color:#475569;font-size:14px">
+        Der Beleg wurde übergeben. Hast du ihn dort auch tatsächlich abgeschickt?
+      </p>
+      <div class="statuslist">
+        <button type="button" id="yesSub" style="--sc:${colByKey[target.status].c};--sbg:${colByKey[target.status].bg}">
+          ✓ Ja – auf „${escapeHTML(colByKey[target.status].short)}“ setzen</button>
+        <button type="button" id="noSub" style="--sc:#94a3b8">Noch nicht – Status lassen</button>
+      </div>
+    </div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelector('#noSub').addEventListener('click', closeSheet);
+  sheet.querySelector('#yesSub').addEventListener('click', async ()=>{
+    closeSheet();
+    const inv = invoices.find(i=> i.id === id);
+    if(inv){ inv[target.stamp] = new Date().toISOString(); await dbPut(inv); }
+    await moveInvoice(id, target.status);
+  });
+}
+
 /* ---------- Sheet-Grundgeruest ---------- */
 const overlay = document.getElementById('overlay');
 const sheet   = document.getElementById('sheet');
 let pendingFile = null;
+let pendingRef  = '';   // Zahlungsreferenz aus dem QR-Code
+let pendingIban = '';
 
 function openSheet(html){
   sheet.innerHTML = `<div class="sheet-grip"></div>` + html;
@@ -767,7 +962,7 @@ function openSheet(html){
 function closeSheet(){
   overlay.classList.remove('open');
   document.body.classList.remove('locked');
-  sheet.innerHTML = ''; pendingFile = null;
+  sheet.innerHTML = ''; pendingFile = null; pendingRef = ''; pendingIban = '';
 }
 overlay.addEventListener('click', e=>{ if(e.target === overlay) closeSheet(); });
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && overlay.classList.contains('open')) closeSheet(); });
@@ -776,14 +971,29 @@ document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && overlay.class
 function openMoveSheet(id){
   const inv = invoices.find(i=> i.id === id);
   if(!inv) return;
+  const hatBeleg = !!inv.fileData;
   openSheet(`
     <div class="sheet-head">
-      <h2>Verschieben</h2>
+      <h2>Aktionen</h2>
       <button class="info-btn" data-info="move" aria-label="Hilfe">i</button>
       <button class="icon-btn" data-close aria-label="Schließen">✕</button>
     </div>
     <div class="sheet-body">
-      <div class="field"><label>${escapeHTML(inv.title || 'Ohne Bezeichnung')}</label></div>
+      <div class="field"><label>${escapeHTML(inv.title || 'Ohne Bezeichnung')}
+        ${inv.amount !== '' && inv.amount != null ? '· ' + fmtEUR(inv.amount) : ''}</label></div>
+
+      <div class="grouplabel">Beleg weitergeben
+        <button class="info-btn" data-info="senden" aria-label="Wie funktioniert das Senden?">i</button></div>
+      <div class="statuslist">
+        ${SEND_TARGETS.map(t=>`
+          <button type="button" data-send="${t.key}" style="--sc:${colByKey[t.status].c};--sbg:${colByKey[t.status].bg}"
+                  ${hatBeleg?'':'disabled'}>
+            <span>${t.icon}</span>${escapeHTML(t.label)}
+          </button>`).join('')}
+      </div>
+      ${hatBeleg ? '' : '<p class="hint">Kein Beleg angehängt – zum Senden erst ein Foto oder PDF hinzufügen.</p>'}
+
+      <div class="grouplabel">Status von Hand setzen</div>
       <div class="statuslist">
         ${COLUMNS.map(c=>`
           <button type="button" data-status="${c.key}" style="--sc:${c.c};--sbg:${c.bg}"
@@ -793,6 +1003,13 @@ function openMoveSheet(id){
       </div>
     </div>`);
   sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelectorAll('[data-send]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const key = b.dataset.send;
+      closeSheet();
+      sendInvoiceTo(id, key);
+    });
+  });
   sheet.querySelectorAll('[data-status]').forEach(b=>{
     b.addEventListener('click', async ()=>{
       const s = b.dataset.status;
@@ -838,6 +1055,8 @@ document.getElementById('btnAdd').addEventListener('click', ()=> openEditor(null
 function openEditor(id, presetStatus){
   const inv = id ? invoices.find(i=> i.id === id) : null;
   pendingFile = inv ? { dataURL: inv.fileData, name: inv.fileName, type: inv.fileType } : null;
+  pendingRef  = inv ? (inv.reference || '') : '';
+  pendingIban = inv ? (inv.iban || '') : '';
 
   openSheet(`
     <div class="sheet-head">
@@ -861,7 +1080,10 @@ function openEditor(id, presetStatus){
           `<option value="${c.key}" ${c.key===(inv?inv.status:(presetStatus||'bezahlt'))?'selected':''}>${escapeHTML(c.title)}</option>`).join('')}</select>
       </div>
       <div class="field">
-        <label>Beleg <button class="info-btn" data-info="ocr" aria-label="Wie funktioniert die Erkennung?">i</button></label>
+        <label>Beleg
+          <button class="info-btn" data-info="ocr" aria-label="Wie funktioniert die Erkennung?">i</button>
+          <button class="info-btn" data-info="qr" aria-label="QR-Code auf der Rechnung">QR</button>
+        </label>
         <div class="filepick">
           <button type="button" id="btnCam"><span class="ic">📷</span>Foto aufnehmen</button>
           <button type="button" id="btnFile"><span class="ic">📄</span>Datei wählen</button>
@@ -869,9 +1091,16 @@ function openEditor(id, presetStatus){
         <input type="file" id="f-cam"  accept="image/*" capture="environment" hidden>
         <input type="file" id="f-file" accept="application/pdf,image/*" hidden>
         <div id="filechipWrap"></div>
+        <div id="refWrap"></div>
         <div id="analyze-status"></div>
         <div class="preview" id="preview"></div>
       </div>
+      ${inv ? `<div class="field"><label>Beleg weitergeben
+        <button class="info-btn" data-info="senden" aria-label="Wie funktioniert das Senden?">i</button></label>
+        <div class="filepick">
+          ${SEND_TARGETS.map(t=>`<button type="button" data-send="${t.key}" ${inv.fileData?'':'disabled'}>
+            <span class="ic">${t.icon}</span>${escapeHTML(t.key==='oegk'?'An ÖGK':'An private KV')}</button>`).join('')}
+        </div></div>` : ''}
       <div class="field">
         <label>Notiz</label>
         <textarea id="f-note" placeholder="z. B. Belegnummer, Frist ...">${inv ? escapeHTML(inv.note||'') : ''}</textarea>
@@ -884,6 +1113,13 @@ function openEditor(id, presetStatus){
     </div>`);
 
   renderFileChip(); renderPreview();
+  if(pendingRef){
+    const rw = document.getElementById('refWrap');
+    if(rw) rw.innerHTML = `<div class="filechip"><span>🔖</span><span class="nm">Referenz: ${escapeHTML(pendingRef)}</span></div>`;
+  }
+  sheet.querySelectorAll('[data-send]').forEach(b=>{
+    b.addEventListener('click', ()=>{ const k = b.dataset.send; closeSheet(); sendInvoiceTo(id, k); });
+  });
   sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
   const cam = sheet.querySelector('#f-cam'), fil = sheet.querySelector('#f-file');
   sheet.querySelector('#btnCam').addEventListener('click', ()=> cam.click());
@@ -927,11 +1163,18 @@ async function setPendingFile(file){
   if(!el) return;   /* Sheet wurde inzwischen geschlossen */
   if(result && (result.amount != null || result.date || result.issuer)){
     el.className = 'ok';
-    el.textContent = '✓ automatisch erkannt – bitte prüfen';
+    el.textContent = result.fromQR
+      ? '✓ aus Zahlungs-QR gelesen – exakte Werte'
+      : '✓ automatisch erkannt – bitte prüfen';
     const a = document.getElementById('f-amount'), d = document.getElementById('f-date'), t = document.getElementById('f-title');
-    if(a && !a.value && result.amount != null) a.value = result.amount;
+    /* QR-Werte sind exakt und duerfen ueberschreiben, OCR-Werte nur fuellen. */
+    if(a && result.amount != null && (!a.value || result.fromQR)) a.value = result.amount;
     if(d && result.date) d.value = result.date;
-    if(t && !t.value && result.issuer) t.value = result.issuer;
+    if(t && result.issuer && (!t.value || result.fromQR)) t.value = result.issuer;
+    pendingRef  = result.reference || '';
+    pendingIban = result.iban || '';
+    const rw = document.getElementById('refWrap');
+    if(rw) rw.innerHTML = pendingRef ? `<div class="filechip"><span>🔖</span><span class="nm">Referenz: ${escapeHTML(pendingRef)}</span></div>` : '';
   } else el.textContent = 'Keine automatische Erkennung möglich – bitte manuell ausfüllen.';
 }
 
@@ -952,7 +1195,8 @@ async function saveEditor(id){
   if(id){
     const inv = invoices.find(i=> i.id === id);
     const statusChanged = inv.status !== status;
-    Object.assign(inv, { title, amount, date, note, status, needsReview:false, updatedAt:now });
+    Object.assign(inv, { title, amount, date, note, status, needsReview:false, updatedAt:now,
+                         reference: pendingRef, iban: pendingIban });
     if(pendingFile){ inv.fileName = pendingFile.name; inv.fileType = pendingFile.type; inv.fileData = pendingFile.dataURL; }
     inv.history = inv.history || [];
     if(statusChanged) inv.history.push({ status, at:now, label: colByKey[status].title });
@@ -963,6 +1207,7 @@ async function saveEditor(id){
       fileName: pendingFile ? pendingFile.name : '',
       fileType: pendingFile ? pendingFile.type : '',
       fileData: pendingFile ? pendingFile.dataURL : '',
+      reference: pendingRef, iban: pendingIban,
       createdAt:now, updatedAt:now, needsReview:false,
       history:[{ status, at:now, label: colByKey[status].title }]
     });
@@ -1002,8 +1247,51 @@ window.addEventListener('resize', ()=>{
   if(isDesktop() !== wasDesktop){ wasDesktop = isDesktop(); render(); }
 });
 
+/* ==================================================================
+   Empfang: aus einer anderen App hierher geteilte Belege.
+   Der Service Worker hat sie in den Cache 'rt-share' gelegt und auf
+   ./?shared=N umgeleitet. Hier abholen, Cache leeren, Karte anlegen.
+   ================================================================== */
+async function handleSharedFiles(){
+  const params = new URLSearchParams(location.search);
+  if(!params.has('shared') && !params.has('neu')) return;
+
+  const n = Number(params.get('shared') || 0);
+  history.replaceState(null, '', './');       // Query aus der Adresse nehmen
+
+  if(params.has('neu')){ openEditor(null); return; }
+  if(!n){ toast('Es kam keine Datei an'); return; }
+
+  let files = [];
+  try{
+    const cache = await caches.open('rt-share');
+    for(const req of await cache.keys()){
+      const res  = await cache.match(req);
+      if(!res) continue;
+      const blob = await res.blob();
+      const name = decodeURIComponent(res.headers.get('x-filename') || 'beleg');
+      files.push(new File([blob], name, { type: blob.type || res.headers.get('content-type') || '' }));
+      await cache.delete(req);
+    }
+  }catch(err){ console.warn('Geteilte Datei nicht lesbar:', err); }
+
+  if(!files.length){ toast('Es kam keine Datei an'); return; }
+
+  if(files.length === 1){
+    /* Einzelner Beleg: Editor oeffnen, Datei ist schon dran und wird analysiert. */
+    openEditor(null);
+    await setPendingFile(files[0]);
+    const t = document.getElementById('f-title');
+    if(t && !t.value) t.value = files[0].name.replace(/\.[a-z0-9]+$/i,'');
+  } else {
+    for(const f of files) await createInvoiceFromFile(f, 'bezahlt');
+    await loadAll();
+    toast(files.length + ' Belege übernommen – werden analysiert …');
+  }
+}
+
 /* ---------- Start ---------- */
-openDB().then(loadAll);
+openDB().then(loadAll).then(handleSharedFiles);
 
 /* ---------- Service Worker inklusive Update-Hinweis ----------
    Laeuft nur unter https:// oder localhost. Meldet sich ein neuer

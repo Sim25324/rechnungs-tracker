@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "Rechnungs-Tracker – Wahlarzt & Apotheke",
+  "short_name": "Rechnungen",
+  "description": "Lokaler Tracker für Wahlarzt- und Apothekenrechnungen mit OCR. Alle Daten bleiben auf dem Gerät.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "lang": "de",
+  "dir": "ltr",
+  "categories": ["finance", "productivity", "medical"],
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

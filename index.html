@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rechnungs-Tracker – Wahlarzt &amp; Apotheke</title>
+
+<!-- PWA -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#2563eb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Rechnungen">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<style>
+  :root{
+    color-scheme: light;
+    --blue:#2563eb; --blue-l:#eff6ff;
+    --teal:#0891b2; --teal-l:#ecfeff;
+    --amber:#d97706; --amber-l:#fffbeb;
+    --violet:#7c3aed; --violet-l:#f5f3ff;
+    --green:#16a34a; --green-l:#f0fdf4;
+    --ink:#0f172a; --sub:#475569; --line:#e2e8f0; --bg:#f8fafc;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family: Arial, Helvetica, sans-serif; background:var(--bg); color:var(--ink);
+  }
+  header{
+    background:#fff; border-bottom:1px solid var(--line); padding:16px 22px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  }
+  header h1{ font-size:19px; margin:0 0 3px; }
+  header p{ margin:0; color:var(--sub); font-size:12.5px; }
+  .saved-indicator{ font-size:11px; color:#16a34a; margin-top:5px; font-weight:600; }
+  .actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  button{
+    font-family:inherit; font-size:13px; border-radius:7px; border:1px solid var(--line);
+    background:#fff; color:var(--ink); padding:8px 13px; cursor:pointer; font-weight:600;
+  }
+  button:hover{ background:#f1f5f9; }
+  button.primary{ background:var(--blue); color:#fff; border-color:var(--blue); }
+  button.primary:hover{ background:#1d4ed8; }
+  button.danger{ background:#fff; color:#dc2626; border-color:#fecaca; }
+  button.danger:hover{ background:#fef2f2; }
+  button.ghost{ border:none; background:transparent; color:var(--sub); }
+
+  .badge-offline{
+    font-size:10.5px; color:#16a34a; background:#f0fdf4; border:1px solid #bbf7d0;
+    border-radius:20px; padding:3px 10px; font-weight:700; white-space:nowrap;
+  }
+
+  .stats{
+    display:flex; gap:10px; padding:12px 22px 0; flex-wrap:wrap;
+  }
+  .stat{
+    background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 14px; min-width:130px;
+  }
+  .stat .n{ font-size:17px; font-weight:800; }
+  .stat .l{ font-size:11px; color:var(--sub); }
+
+  .board{
+    display:grid; grid-template-columns: repeat(5, minmax(210px,1fr));
+    gap:12px; padding:14px 22px 26px; overflow-x:auto;
+  }
+  .col{
+    background:#fff; border:1.5px solid var(--line); border-radius:10px; min-height:360px;
+    display:flex; flex-direction:column; transition:border-color .12s, background .12s;
+  }
+  .col.dragover{ border-color:var(--col-c,#2563eb); background:var(--col-bg,#eff6ff); }
+  .col-head{
+    padding:10px 12px; border-bottom:1px solid var(--line); border-radius:10px 10px 0 0;
+    font-size:12.5px; font-weight:800; color:var(--col-c,#334155);
+    background:var(--col-bg,#f8fafc); display:flex; justify-content:space-between; align-items:center;
+  }
+  .col-head .count{
+    background:var(--col-c,#94a3b8); color:#fff; border-radius:20px; font-size:10.5px;
+    padding:1px 8px; font-weight:800;
+  }
+  .col-body{ padding:8px; display:flex; flex-direction:column; gap:8px; flex:1; }
+  .empty{
+    flex:1; display:flex; align-items:center; justify-content:center; text-align:center;
+    color:#94a3b8; font-size:11.5px; border:1.5px dashed #e2e8f0; border-radius:8px; padding:14px; margin:2px;
+  }
+
+  .card{
+    background:#fff; border:1px solid var(--line); border-left:4px solid var(--col-c,#94a3b8);
+    border-radius:8px; padding:9px 10px; cursor:grab; box-shadow:0 1px 2px rgba(0,0,0,.04);
+  }
+  .card:active{ cursor:grabbing; }
+  .card.dragging{ opacity:.35; }
+  .card .title{ font-weight:700; font-size:12.5px; line-height:1.3; margin-bottom:3px; }
+  .card .meta{ font-size:11px; color:var(--sub); display:flex; justify-content:space-between; gap:6px; }
+  .card .amt{ font-weight:700; color:var(--ink); }
+  .card .file-tag{
+    display:inline-flex; align-items:center; gap:4px; margin-top:6px; font-size:10px; color:var(--sub);
+    background:#f1f5f9; border-radius:5px; padding:2px 6px;
+  }
+  .card .review-tag{
+    display:inline-flex; align-items:center; gap:4px; margin-top:6px; margin-left:5px; font-size:10px;
+    background:#fef3c7; color:#92400e; border-radius:5px; padding:2px 6px; font-weight:700;
+  }
+
+  .dropzone-hint{
+    font-size:10.5px; color:#94a3b8; text-align:center; padding:6px 8px 10px;
+  }
+
+  /* Modal */
+  .overlay{
+    position:fixed; inset:0; background:rgba(15,23,42,.45); display:none;
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .overlay.open{ display:flex; }
+  .modal{
+    background:#fff; border-radius:12px; width:100%; max-width:560px; max-height:88vh; overflow-y:auto;
+    padding:22px; box-shadow:0 20px 50px rgba(0,0,0,.25);
+  }
+  .modal h2{ margin:0 0 14px; font-size:16px; }
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:11.5px; font-weight:700; color:var(--sub); margin-bottom:4px; }
+  .field input[type=text], .field input[type=number], .field input[type=date], .field textarea, .field select{
+    width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:7px; font-family:inherit; font-size:13px;
+  }
+  .field textarea{ resize:vertical; min-height:56px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .filedrop{
+    border:1.5px dashed #cbd5e1; border-radius:8px; padding:14px; text-align:center; font-size:12px; color:var(--sub);
+    cursor:pointer;
+  }
+  .filedrop.hover{ border-color:var(--blue); background:var(--blue-l); }
+  .preview{ margin-top:10px; }
+  .preview img{ max-width:100%; border-radius:6px; border:1px solid var(--line); }
+  .preview iframe{ width:100%; height:340px; border:1px solid var(--line); border-radius:6px; }
+  #analyze-status{ font-size:11px; color:var(--sub); margin-top:6px; min-height:14px; }
+  #analyze-status.ok{ color:#16a34a; font-weight:700; }
+  .history{ margin-top:14px; border-top:1px solid var(--line); padding-top:12px; }
+  .history h3{ font-size:12px; margin:0 0 8px; color:var(--sub); }
+  .history ul{ list-style:none; margin:0; padding:0; font-size:11.5px; }
+  .history li{ padding:4px 0; border-bottom:1px dashed #f1f5f9; display:flex; justify-content:space-between; color:var(--sub); }
+  .history li b{ color:var(--ink); }
+  .modal-actions{ display:flex; justify-content:space-between; margin-top:18px; gap:8px; }
+  .modal-actions .right{ display:flex; gap:8px; }
+
+  .note-box{
+    margin:0 22px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;
+    padding:9px 14px; font-size:11.5px; color:#1e3a8a;
+  }
+
+  footer{ text-align:center; color:#94a3b8; font-size:11px; padding:14px; }
+  .toast{
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#0f172a; color:#fff;
+    padding:9px 16px; border-radius:8px; font-size:12.5px; opacity:0; pointer-events:none; transition:opacity .2s; z-index:100;
+  }
+  .toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Rechnungs-Tracker – Wahlarzt &amp; Apotheke</h1>
+    <p>Rechnung (PDF/Bild) direkt in eine Spalte ziehen – Betrag, Datum und Aussteller werden automatisch erkannt. Karten per Drag &amp; Drop zwischen Spalten verschieben.</p>
+    <div class="saved-indicator" id="savedIndicator">Noch keine Änderung gespeichert</div>
+  </div>
+  <div class="actions">
+    <span class="badge-offline">🔒 100 % lokal, läuft offline</span>
+    <button class="ghost" id="btnExport">Sichern (JSON)</button>
+    <button class="ghost" id="btnImportTrigger">Wiederherstellen</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
+    <button class="primary" id="btnAdd">+ Neue Rechnung</button>
+  </div>
+</header>
+
+<div class="note-box">
+  <b>Wichtig:</b> Betrag, Datum und Aussteller werden automatisch aus der Datei ausgelesen (lokale Text-/Bilderkennung im Browser, keine Internetverbindung nötig) – das ist eine Lesehilfe, keine Garantie. Bitte immer kurz prüfen. Ob die ÖGK eine Leistung tatsächlich (anteilig) erstattet, kann dieses Tool nicht bestimmen – das hängt vom genauen Tarifposten ab und muss bei der ÖGK/Ihrer Versicherung nachgefragt werden.
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div class="board" id="board"></div>
+
+<footer>Alle Daten bleiben lokal auf diesem Rechner gespeichert (IndexedDB im Browser) – keine Übertragung an einen Server, auch die Dokumentenanalyse läuft komplett offline. Jede Änderung wird sofort automatisch gespeichert. Trotzdem regelmäßig „Sichern“ nutzen, um ein Backup zu behalten – Browserdaten können z. B. beim Zurücksetzen des Browsers verloren gehen.</footer>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="./vendor/tesseract/tesseract.min.js"></script>
+<script>
+/* ---------- Konfiguration der Spalten ---------- */
+const COLUMNS = [
+  { key:'bezahlt',        title:'1 · Bezahlt',                 c:'#2563eb', bg:'#eff6ff' },
+  { key:'oegk_eingereicht',title:'2 · Bei ÖGK eingereicht',     c:'#0891b2', bg:'#ecfeff' },
+  { key:'oegk_erstattet', title:'3 · ÖGK-Erstattung erhalten',  c:'#7c3aed', bg:'#f5f3ff' },
+  { key:'kv_eingereicht', title:'4 · Bei privater KV eingereicht', c:'#d97706', bg:'#fffbeb' },
+  { key:'abgeschlossen',  title:'5 · Abgeschlossen',            c:'#16a34a', bg:'#f0fdf4' },
+];
+const colByKey = Object.fromEntries(COLUMNS.map(c=>[c.key,c]));
+
+/* ---------- IndexedDB (Autosave bei jeder Aktion) ---------- */
+let db;
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open('rechnungs-tracker', 1);
+    req.onupgradeneeded = e=>{
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains('invoices')){
+        d.createObjectStore('invoices', { keyPath:'id' });
+      }
+    };
+    req.onsuccess = e=>{ db = e.target.result; resolve(db); };
+    req.onerror = e=> reject(e);
+  });
+}
+function dbAll(){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction('invoices','readonly');
+    const req = tx.objectStore('invoices').getAll();
+    req.onsuccess = ()=> resolve(req.result || []);
+    req.onerror = e=> reject(e);
+  });
+}
+function dbPut(rec){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction('invoices','readwrite');
+    tx.objectStore('invoices').put(rec);
+    tx.oncomplete = ()=> { markSaved(); resolve(); };
+    tx.onerror = e=> reject(e);
+  });
+}
+function dbDelete(id){
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction('invoices','readwrite');
+    tx.objectStore('invoices').delete(id);
+    tx.oncomplete = ()=> { markSaved(); resolve(); };
+    tx.onerror = e=> reject(e);
+  });
+}
+function markSaved(){
+  const el = document.getElementById('savedIndicator');
+  if(el) el.textContent = '✓ Automatisch gespeichert · ' + new Date().toLocaleTimeString('de-AT');
+}
+
+/* ---------- Helpers ---------- */
+const uid = ()=> 'inv_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const fmtEUR = n => (n===''||n===null||n===undefined||isNaN(n)) ? '–' : Number(n).toLocaleString('de-AT',{style:'currency',currency:'EUR'});
+const fmtDate = iso => { if(!iso) return '–'; const d=new Date(iso); return d.toLocaleDateString('de-AT'); };
+const fmtDateTime = iso => { const d=new Date(iso); return d.toLocaleDateString('de-AT')+' '+d.toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'}); };
+
+function fileToDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const r = new FileReader();
+    r.onload = ()=> resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=> t.classList.remove('show'), 2400);
+}
+function escapeHTML(s){
+  return String(s).replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ==================================================================
+   AUTOMATISCHE DOKUMENTENANALYSE (komplett lokal, kein Internet nötig)
+   - PDFs mit Textebene: PDF.js liest den Text direkt aus
+   - Fotos/Scans: Tesseract.js (OCR) liest den Text aus dem Bild
+   - Danach: einfache Texterkennung für Betrag / Datum / Aussteller
+   ================================================================== */
+let pdfjsPromise = null;
+function getPdfjs(){
+  if(!pdfjsPromise){
+    pdfjsPromise = import('./vendor/pdfjs/pdf.min.mjs').then(mod=>{
+      mod.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.min.mjs';
+      return mod;
+    });
+  }
+  return pdfjsPromise;
+}
+
+let tesseractWorkerPromise = null;
+function getTesseractWorker(){
+  if(!tesseractWorkerPromise){
+    tesseractWorkerPromise = Tesseract.createWorker('deu', 1, {
+      workerPath: './vendor/tesseract/worker.min.js',
+      corePath: './vendor/tesseract/',
+      langPath: './vendor/tesseract/lang/',
+      gzip: true,
+    });
+  }
+  return tesseractWorkerPromise;
+}
+
+async function analyzePDF(file){
+  const pdfjsLib = await getPdfjs();
+  const buf = await file.arrayBuffer();
+  const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+  const allLines = [];
+  for(let p = 1; p <= doc.numPages; p++){
+    const page = await doc.getPage(p);
+    const content = await page.getTextContent();
+    let curY = null, curLine = [];
+    for(const item of content.items){
+      const y = Math.round(item.transform[5]);
+      if(curY === null || Math.abs(y - curY) > 2){
+        if(curLine.length) allLines.push(curLine.join(''));
+        curLine = [item.str];
+        curY = y;
+      } else {
+        curLine.push(item.str);
+      }
+    }
+    if(curLine.length) allLines.push(curLine.join(''));
+  }
+  return parseInvoiceText(allLines.join('\n'), allLines);
+}
+
+async function analyzeImage(file){
+  const worker = await getTesseractWorker();
+  const dataURL = await fileToDataURL(file);
+  const { data } = await worker.recognize(dataURL);
+  const text = data.text || '';
+  return parseInvoiceText(text, text.split('\n'));
+}
+
+function normalizeAmount(raw){
+  raw = raw.trim();
+  if(raw.includes(',')){
+    // Deutsches Format: Punkt = Tausendertrennzeichen, Komma = Dezimaltrennzeichen
+    raw = raw.replace(/\./g,'').replace(',', '.');
+  } else if(/\.\d{1,2}$/.test(raw)){
+    // Bereits englisches Dezimalformat, z. B. "89.90" -> unverändert lassen
+  } else {
+    // Punkt(e) ohne Komma und nicht wie ein Dezimalpunkt -> Tausendertrennzeichen
+    raw = raw.replace(/\./g,'');
+  }
+  return parseFloat(raw);
+}
+function extractAmount(text){
+  const patterns = [
+    /(?:Gesamtbetrag|Rechnungsbetrag|Endbetrag|Zahlbetrag|Zu\s*zahlen|Summe)[^\d€]{0,20}([\d.,]+)\s*(?:€|EUR)?/i,
+    /€\s*([\d.,]+)/,
+    /([\d.,]+)\s*EUR/i,
+    /([\d.,]+)\s*€/,
+  ];
+  for(const re of patterns){
+    const m = text.match(re);
+    if(m){
+      const n = normalizeAmount(m[1]);
+      if(!isNaN(n) && n > 0 && n < 100000) return n;
+    }
+  }
+  return null;
+}
+function extractDate(text){
+  const m = text.match(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/);
+  if(!m) return null;
+  let [, d, mo, y] = m;
+  if(y.length === 2) y = '20' + y;
+  const mm = mo.padStart(2,'0'), dd = d.padStart(2,'0');
+  if(Number(mm) < 1 || Number(mm) > 12 || Number(dd) < 1 || Number(dd) > 31) return null;
+  return `${y.padStart(4,'0')}-${mm}-${dd}`;
+}
+function extractIssuer(lines){
+  const nonEmpty = lines.map(l=> l.trim()).filter(Boolean);
+  const docLine = nonEmpty.find(l=> /^(Dr\.|Prim\.|Univ\.-Prof\.|Mag\.|Doz\.|OA\b)/i.test(l));
+  if(docLine) return docLine.slice(0,80);
+  const apoLine = nonEmpty.find(l=> /apotheke/i.test(l));
+  if(apoLine) return apoLine.slice(0,80);
+  return (nonEmpty[0] || '').slice(0,80);
+}
+function parseInvoiceText(text, lines){
+  return { amount: extractAmount(text), date: extractDate(text), issuer: extractIssuer(lines), rawText: text };
+}
+
+async function analyzeInvoiceFile(file){
+  try{
+    if(file.type === 'application/pdf') return await analyzePDF(file);
+    if(file.type && file.type.startsWith('image/')) return await analyzeImage(file);
+  }catch(err){
+    console.error('Automatische Analyse fehlgeschlagen:', err);
+  }
+  return null;
+}
+
+/* ---------- State & Render ---------- */
+let invoices = [];
+
+async function loadAll(){
+  invoices = await dbAll();
+  render();
+}
+
+function render(){
+  renderStats();
+  renderBoard();
+}
+
+function renderStats(){
+  const total = invoices.length;
+  const offen = invoices.filter(i=> i.status!=='abgeschlossen');
+  const sumOffen = offen.reduce((s,i)=> s + (Number(i.amount)||0), 0);
+  const sumDone = invoices.filter(i=>i.status==='abgeschlossen').reduce((s,i)=> s + (Number(i.amount)||0), 0);
+  const el = document.getElementById('stats');
+  el.innerHTML = `
+    <div class="stat"><div class="n">${total}</div><div class="l">Rechnungen gesamt</div></div>
+    <div class="stat"><div class="n">${offen.length}</div><div class="l">noch in Bearbeitung</div></div>
+    <div class="stat"><div class="n">${fmtEUR(sumOffen)}</div><div class="l">offener Betrag (Summe)</div></div>
+    <div class="stat"><div class="n">${fmtEUR(sumDone)}</div><div class="l">bereits abgeschlossen (Summe)</div></div>
+  `;
+}
+
+function renderBoard(){
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  COLUMNS.forEach(col=>{
+    const items = invoices.filter(i=> i.status === col.key)
+                           .sort((a,b)=> (b.updatedAt||'').localeCompare(a.updatedAt||''));
+    const colEl = document.createElement('div');
+    colEl.className = 'col';
+    colEl.style.setProperty('--col-c', col.c);
+    colEl.style.setProperty('--col-bg', col.bg);
+    colEl.dataset.key = col.key;
+
+    colEl.innerHTML = `
+      <div class="col-head"><span>${col.title}</span><span class="count">${items.length}</span></div>
+      <div class="col-body" data-body="${col.key}"></div>
+      <div class="dropzone-hint">Datei hierher ziehen oder Karte verschieben</div>
+    `;
+
+    const body = colEl.querySelector('.col-body');
+    if(items.length === 0){
+      body.innerHTML = `<div class="empty">Noch keine Rechnung hier</div>`;
+    } else {
+      items.forEach(inv=> body.appendChild(renderCard(inv, col)));
+    }
+
+    ['dragenter','dragover'].forEach(evt=> colEl.addEventListener(evt, e=>{
+      e.preventDefault();
+      colEl.classList.add('dragover');
+    }));
+    colEl.addEventListener('dragleave', e=>{
+      if(!colEl.contains(e.relatedTarget)) colEl.classList.remove('dragover');
+    });
+    colEl.addEventListener('drop', async e=>{
+      e.preventDefault();
+      colEl.classList.remove('dragover');
+      if(e.dataTransfer.files && e.dataTransfer.files.length > 0){
+        for(const file of e.dataTransfer.files){
+          await createInvoiceFromFile(file, col.key);
+        }
+        await loadAll();
+        toast('Rechnung hinzugefügt – wird analysiert …');
+      } else {
+        const id = e.dataTransfer.getData('text/plain');
+        if(id) await moveInvoice(id, col.key);
+      }
+    });
+
+    board.appendChild(colEl);
+  });
+}
+
+function renderCard(inv, col){
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.style.setProperty('--col-c', col.c);
+  el.draggable = true;
+  el.dataset.id = inv.id;
+  el.innerHTML = `
+    <div class="title">${escapeHTML(inv.title || 'Ohne Bezeichnung')}</div>
+    <div class="meta"><span>${fmtDate(inv.date)}</span><span class="amt">${fmtEUR(inv.amount)}</span></div>
+    ${inv.fileName ? `<div class="file-tag">📎 ${escapeHTML(inv.fileName)}</div>` : ''}
+    ${inv.needsReview ? `<div class="review-tag">⚠ automatisch erkannt – prüfen</div>` : ''}
+  `;
+  el.addEventListener('dragstart', e=>{
+    e.dataTransfer.setData('text/plain', inv.id);
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(()=> el.classList.add('dragging'), 0);
+  });
+  el.addEventListener('dragend', ()=> el.classList.remove('dragging'));
+  el.addEventListener('click', ()=> openModal(inv.id));
+  return el;
+}
+
+/* ---------- CRUD ---------- */
+async function createInvoiceFromFile(file, status){
+  const dataURL = await fileToDataURL(file);
+  const now = new Date().toISOString();
+  const id = uid();
+  const rec = {
+    id,
+    title: file.name.replace(/\.[a-z0-9]+$/i,''),
+    amount: '',
+    date: now.slice(0,10),
+    note: '',
+    status: status,
+    fileName: file.name,
+    fileType: file.type,
+    fileData: dataURL,
+    createdAt: now,
+    updatedAt: now,
+    needsReview: false,
+    history: [{ status, at: now, label: colByKey[status].title }]
+  };
+  await dbPut(rec);
+  // Automatische Analyse läuft im Hintergrund weiter, ohne die Eingabe zu blockieren.
+  analyzeAndFill(id, file);
+  return id;
+}
+
+async function analyzeAndFill(id, file){
+  const result = await analyzeInvoiceFile(file);
+  if(!result) return;
+  const current = (await dbAll()).find(i=> i.id === id);
+  if(!current) return;
+  let changed = false;
+  const defaultTitle = file.name.replace(/\.[a-z0-9]+$/i,'');
+  if(result.amount != null && (current.amount === '' || current.amount == null)){ current.amount = result.amount; changed = true; }
+  if(result.date && !current.date){ current.date = result.date; changed = true; }
+  if(result.issuer && current.title === defaultTitle){ current.title = result.issuer; changed = true; }
+  if(changed){
+    current.needsReview = true;
+    current.updatedAt = new Date().toISOString();
+    await dbPut(current);
+    await loadAll();
+    toast('🔍 „' + (current.title || defaultTitle) + '“ analysiert – bitte kurz prüfen');
+  }
+}
+
+async function moveInvoice(id, newStatus){
+  const inv = invoices.find(i=> i.id === id);
+  if(!inv || inv.status === newStatus) return;
+  inv.status = newStatus;
+  inv.updatedAt = new Date().toISOString();
+  inv.history = inv.history || [];
+  inv.history.push({ status:newStatus, at: inv.updatedAt, label: colByKey[newStatus].title });
+  await dbPut(inv);
+  await loadAll();
+  toast('Status aktualisiert: ' + colByKey[newStatus].title);
+}
+
+async function deleteInvoice(id){
+  if(!confirm('Diese Rechnung wirklich löschen?')) return;
+  await dbDelete(id);
+  closeModal();
+  await loadAll();
+  toast('Rechnung gelöscht');
+}
+
+/* ---------- Modal: Add / Edit ---------- */
+const overlay = document.getElementById('overlay');
+const modal = document.getElementById('modal');
+let pendingFile = null; // {dataURL, name, type}
+
+function closeModal(){ overlay.classList.remove('open'); modal.innerHTML=''; pendingFile=null; }
+overlay.addEventListener('click', e=>{ if(e.target === overlay) closeModal(); });
+
+document.getElementById('btnAdd').addEventListener('click', ()=> openModal(null));
+
+function statusOptions(selected){
+  return COLUMNS.map(c=> `<option value="${c.key}" ${c.key===selected?'selected':''}>${c.title}</option>`).join('');
+}
+
+function openModal(id){
+  const inv = id ? invoices.find(i=> i.id===id) : null;
+  pendingFile = inv ? { dataURL: inv.fileData, name: inv.fileName, type: inv.fileType } : null;
+
+  modal.innerHTML = `
+    <h2>${inv ? 'Rechnung bearbeiten' : 'Neue Rechnung'}</h2>
+    <div class="field">
+      <label>Bezeichnung (z. B. „Dr. Müller – Kontrolle“ oder „Apotheke Hauptplatz“)</label>
+      <input type="text" id="f-title" value="${inv ? escapeHTML(inv.title) : ''}" placeholder="Bezeichnung">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Betrag (€)</label>
+        <input type="number" step="0.01" id="f-amount" value="${inv ? inv.amount : ''}" placeholder="0,00">
+      </div>
+      <div class="field">
+        <label>Rechnungsdatum</label>
+        <input type="date" id="f-date" value="${inv ? inv.date : new Date().toISOString().slice(0,10)}">
+      </div>
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <select id="f-status">${statusOptions(inv ? inv.status : 'bezahlt')}</select>
+    </div>
+    <div class="field">
+      <label>Notiz</label>
+      <textarea id="f-note" placeholder="z. B. Belegnummer, Ansprechpartner, Frist ...">${inv ? escapeHTML(inv.note||'') : ''}</textarea>
+    </div>
+    <div class="field">
+      <label>Angehängte Datei</label>
+      <div class="filedrop" id="filedrop">
+        <input type="file" id="f-file" style="display:none" accept="application/pdf,image/*">
+        <span id="filedrop-label">${pendingFile ? '📎 ' + escapeHTML(pendingFile.name) + ' — klicken zum Ersetzen' : 'Klicken oder Datei hierher ziehen (PDF / Bild)'}</span>
+      </div>
+      <div id="analyze-status"></div>
+      <div class="preview" id="preview"></div>
+    </div>
+    ${inv ? renderHistory(inv) : ''}
+    <div class="modal-actions">
+      <div>${inv ? `<button class="danger" id="btnDelete">Löschen</button>` : ''}</div>
+      <div class="right">
+        <button class="ghost" id="btnCancel">Abbrechen</button>
+        <button class="primary" id="btnSave">Speichern</button>
+      </div>
+    </div>
+  `;
+  overlay.classList.add('open');
+  renderPreview();
+
+  const fd = document.getElementById('filedrop');
+  const fi = document.getElementById('f-file');
+  fd.addEventListener('click', ()=> fi.click());
+  fi.addEventListener('change', async ()=>{
+    if(fi.files[0]) await setPendingFile(fi.files[0]);
+  });
+  ['dragenter','dragover'].forEach(evt=> fd.addEventListener(evt, e=>{ e.preventDefault(); fd.classList.add('hover'); }));
+  fd.addEventListener('dragleave', ()=> fd.classList.remove('hover'));
+  fd.addEventListener('drop', async e=>{
+    e.preventDefault(); fd.classList.remove('hover');
+    if(e.dataTransfer.files[0]) await setPendingFile(e.dataTransfer.files[0]);
+  });
+
+  document.getElementById('btnCancel').addEventListener('click', closeModal);
+  document.getElementById('btnSave').addEventListener('click', ()=> saveModal(id));
+  if(inv) document.getElementById('btnDelete').addEventListener('click', ()=> deleteInvoice(id));
+}
+
+async function setPendingFile(file){
+  const dataURL = await fileToDataURL(file);
+  pendingFile = { dataURL, name: file.name, type: file.type };
+  document.getElementById('filedrop-label').textContent = '📎 ' + file.name + ' — klicken zum Ersetzen';
+  renderPreview();
+
+  const statusEl = document.getElementById('analyze-status');
+  if(statusEl){ statusEl.className=''; statusEl.textContent = '🔍 Rechnung wird lokal analysiert …'; }
+  const result = await analyzeInvoiceFile(file);
+  if(!statusEl) return; // Modal ggf. inzwischen geschlossen
+  if(result && (result.amount != null || result.date || result.issuer)){
+    statusEl.className = 'ok';
+    statusEl.textContent = '✓ automatisch erkannt – bitte prüfen';
+    const amountEl = document.getElementById('f-amount');
+    const dateEl = document.getElementById('f-date');
+    const titleEl = document.getElementById('f-title');
+    if(amountEl && !amountEl.value && result.amount != null) amountEl.value = result.amount;
+    if(dateEl && result.date) dateEl.value = result.date;
+    if(titleEl && !titleEl.value && result.issuer) titleEl.value = result.issuer;
+  } else {
+    statusEl.textContent = 'Keine automatische Erkennung möglich – bitte manuell ausfüllen.';
+  }
+}
+
+function renderPreview(){
+  const p = document.getElementById('preview');
+  if(!pendingFile){ p.innerHTML=''; return; }
+  const link = `<div style="margin-top:6px;"><a href="${pendingFile.dataURL}" download="${escapeHTML(pendingFile.name)}">⬇ ${escapeHTML(pendingFile.name)} herunterladen</a></div>`;
+  if(pendingFile.type && pendingFile.type.startsWith('image/')){
+    p.innerHTML = `<img src="${pendingFile.dataURL}" alt="Vorschau">` + link;
+  } else if(pendingFile.type === 'application/pdf'){
+    p.innerHTML = `<iframe src="${pendingFile.dataURL}"></iframe>` + link;
+  } else {
+    p.innerHTML = link;
+  }
+}
+
+function renderHistory(inv){
+  const items = (inv.history||[]).slice().reverse().map(h=>
+    `<li><span>${escapeHTML(h.label)}</span><b>${fmtDateTime(h.at)}</b></li>`
+  ).join('');
+  return `<div class="history"><h3>Verlauf (Nachvollziehbarkeit)</h3><ul>${items || '<li>Kein Verlauf</li>'}</ul></div>`;
+}
+
+async function saveModal(id){
+  const title = document.getElementById('f-title').value.trim() || 'Ohne Bezeichnung';
+  const amount = document.getElementById('f-amount').value;
+  const date = document.getElementById('f-date').value;
+  const status = document.getElementById('f-status').value;
+  const note = document.getElementById('f-note').value;
+  const now = new Date().toISOString();
+
+  if(id){
+    const inv = invoices.find(i=> i.id===id);
+    const statusChanged = inv.status !== status;
+    inv.title = title; inv.amount = amount; inv.date = date; inv.note = note;
+    if(pendingFile){ inv.fileName = pendingFile.name; inv.fileType = pendingFile.type; inv.fileData = pendingFile.dataURL; }
+    inv.status = status;
+    inv.needsReview = false; // durch manuelles Speichern geprüft/bestätigt
+    inv.updatedAt = now;
+    inv.history = inv.history || [];
+    if(statusChanged) inv.history.push({ status, at: now, label: colByKey[status].title });
+    await dbPut(inv);
+  } else {
+    const rec = {
+      id: uid(), title, amount, date, note, status,
+      fileName: pendingFile ? pendingFile.name : '',
+      fileType: pendingFile ? pendingFile.type : '',
+      fileData: pendingFile ? pendingFile.dataURL : '',
+      createdAt: now, updatedAt: now, needsReview: false,
+      history: [{ status, at: now, label: colByKey[status].title }]
+    };
+    await dbPut(rec);
+  }
+  closeModal();
+  await loadAll();
+  toast('Gespeichert');
+}
+
+/* ---------- Export / Import ---------- */
+document.getElementById('btnExport').addEventListener('click', async ()=>{
+  const data = await dbAll();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rechnungs-tracker-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  toast('Backup heruntergeladen');
+});
+
+document.getElementById('btnImportTrigger').addEventListener('click', ()=> document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if(!Array.isArray(data)) throw new Error('Ungültiges Format');
+    for(const rec of data){ await dbPut(rec); }
+    await loadAll();
+    toast(data.length + ' Rechnung(en) wiederhergestellt');
+  }catch(err){
+    alert('Import fehlgeschlagen: ' + err.message);
+  }
+  e.target.value = '';
+});
+
+/* ---------- Init ---------- */
+openDB().then(loadAll);
+
+/* ---------- Service Worker ---------- */
+/* Laeuft nur unter https:// oder localhost. Unter file:// oder http://<LAN-IP>
+   registriert der Browser keinen SW – die App funktioniert dann trotzdem,
+   nur ohne Offline-Cache und ohne Installier-Prompt. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .catch(err => console.warn('Service Worker nicht registriert:', err));
+  });
+}
+</script>
+</body>
+</html>

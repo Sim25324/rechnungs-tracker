@@ -322,6 +322,47 @@ button:disabled{ opacity:.5; }
 .merk b{ display:block; color:#92400e; margin-bottom:2px; }
 .merk span{ color:#78350f; }
 
+/* Dokumentenliste */
+.docrow{
+  display:flex; align-items:center; gap:8px; padding:8px 10px; margin-bottom:7px;
+  background:#f8fafc; border:1px solid var(--line); border-radius:10px;
+}
+.docicon{ font-size:18px; flex:none; }
+.docmain{ flex:1; min-width:0; }
+.docmain .dockind{
+  width:100%; font-size:13px; font-weight:700; padding:5px 8px; min-height:34px;
+  border:1px solid #cbd5e1; border-radius:7px; background:#fff; color:var(--ink);
+}
+.docname{
+  display:block; font-size:11.5px; color:#64748b; margin-top:3px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.docbtn{
+  flex:none; width:36px; min-height:36px; padding:0; border-radius:8px;
+  font-size:15px; background:#fff;
+}
+.docbtn.del{ color:#dc2626; border-color:#fecaca; }
+
+/* Bedarfsanzeige */
+.bedarf{
+  display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline;
+  font-size:12.5px; padding:8px 11px; border-radius:8px; margin-top:7px;
+  background:#fef2f2; border:1px solid #fecaca; color:#991b1b;
+}
+.bedarf.ok{ background:#f0fdf4; border-color:#bbf7d0; color:#166534; }
+.bedarf b{ font-weight:800; }
+
+/* Karten- und Kennzahlen-Warnungen */
+.card .late-tag{
+  font-size:11px; background:#fee2e2; color:#991b1b; border-radius:6px;
+  padding:3px 7px; font-weight:800;
+}
+.card .nextstep.miss{ color:#991b1b; background:#fef2f2; }
+.stat.warn{ border-color:#fecaca; background:#fef2f2; }
+.stat.warn .n{ color:#991b1b; }
+.stat.late{ border-color:#fdba74; background:#fff7ed; }
+.stat.late .n{ color:#9a3412; }
+
 .history{ margin-top:6px; border-top:1px solid var(--line); padding-top:14px; }
 .history h3{ font-size:13px; margin:0 0 8px; color:var(--sub); }
 .history ul{ list-style:none; margin:0; padding:0; font-size:13px; }
@@ -462,6 +503,65 @@ const WEGE = {
 const WEG_KEYS  = Object.keys(WEGE);
 const wegOf     = inv => WEGE[inv && inv.weg] || WEGE.wahlarzt;
 
+/* ==================================================================
+   Dokumentenrollen. Eine Karte traegt mehrere Dateien mit je einer
+   Rolle – nicht mehr eine einzige Datei. Der haeufigste Ablehnungs-
+   grund ist ein fehlender Zahlungsnachweis, und die private Kasse
+   will zusaetzlich den ÖGK-Bescheid, den es beim Einreichen bei der
+   ÖGK noch gar nicht gibt. Deshalb waechst die Karte mit dem Vorgang.
+   ================================================================== */
+const DOCKINDS = {
+  rechnung:         { label:'Rechnung / Honorarnote', kurz:'Rechnung',        icon:'🧾' },
+  zahlungsnachweis: { label:'Zahlungsnachweis',       kurz:'Zahlung',         icon:'💳' },
+  oegk_bescheid:    { label:'ÖGK-Bescheid',           kurz:'ÖGK-Bescheid',    icon:'🏛' },
+  sonstiges:        { label:'Sonstiges',              kurz:'Sonstiges',       icon:'📎' },
+};
+const DOCKIND_KEYS = Object.keys(DOCKINDS);
+
+/* Welche Rollen braucht dieses Ziel bei diesem Weg? */
+const BEDARF = {
+  wahlarzt:     { oegk:['rechnung','zahlungsnachweis'], kv:['rechnung','oegk_bescheid'] },
+  kassenrezept: {                                       kv:['rechnung'] },
+  privatrezept: { oegk:['rechnung','zahlungsnachweis'], kv:['rechnung'] },
+};
+function bedarfFuer(inv, targetKey){
+  const b = (BEDARF[inv.weg || 'wahlarzt'] || {})[targetKey];
+  const need = b ? b.slice() : ['rechnung'];
+  /* Privatrezept: Der ÖGK-Bescheid wird erst dann verlangt, wenn dort
+     ueberhaupt eingereicht wurde – sonst gibt es keinen. */
+  if((inv.weg === 'privatrezept') && targetKey === 'kv' && inv.submittedOegkAt) need.push('oegk_bescheid');
+  return [...new Set(need)];
+}
+const docKinds     = inv => new Set((inv.docs||[]).map(d=> d.kind));
+const fehlendeDocs = (inv, t) => { const h = docKinds(inv); return bedarfFuer(inv, t).filter(k=> !h.has(k)); };
+const docsFuer     = (inv, t) => { const need = bedarfFuer(inv, t);
+  return (inv.docs||[]).filter(d=> need.includes(d.kind)); };
+
+/* Altbestand aus der Einzeldatei-Zeit auf docs[] heben. */
+function migrate(inv){
+  let touched = false;
+  if(!Array.isArray(inv.docs)){
+    inv.docs = inv.fileData ? [{
+      id: uid(), kind:'rechnung', name: inv.fileName || 'Rechnung',
+      type: inv.fileType || '', data: inv.fileData, addedAt: inv.createdAt || new Date().toISOString()
+    }] : [];
+    touched = true;
+  }
+  if(!inv.weg){ inv.weg = 'wahlarzt'; touched = true; }
+  return touched;
+}
+
+/* Ab wann gilt ein Vorgang als ueberfaellig? Erfahrungswerte, keine
+   gesetzlichen Fristen – sie sollen nur ans Nachfragen erinnern. */
+const FRIST = { oegk_eingereicht: 42, kv_eingereicht: 35 };
+function ueberfaellig(inv){
+  const grenze = FRIST[inv.status];
+  if(!grenze) return 0;
+  const stamp = inv.status === 'oegk_eingereicht' ? inv.submittedOegkAt : inv.submittedKvAt;
+  const d = daysSince(stamp);
+  return (d !== null && d > grenze) ? d : 0;
+}
+
 /* Welche Spalte kommt fuer diesen Beleg als naechstes? */
 function naechsterSchritt(inv){
   const weg = wegOf(inv);
@@ -495,6 +595,7 @@ const INFO = {
   senden: '<b>Warum „speichern“ und nicht „senden“</b><br>Die ÖGK- und die Generali-App nehmen keine geteilten Dateien entgegen. Sie holen den Beleg stattdessen selbst über ihren eigenen Dateiauswähler – deshalb stehen sie im Teilen-Dialog von Android gar nicht drin.<br><br>Diese App legt den Beleg darum unter einem eindeutigen Namen in <b>Downloads</b> ab. Dort findest du ihn im Auswähler beider Apps als obersten Eintrag.<br><br>Bezeichnung, Datum und Betrag liegen gleichzeitig in der Zwischenablage – für die Formularfelder.<br><br>Das <b>Einreichen selbst bestätigst du dort</b>. Die Anmeldung mit ID Austria bzw. deinem Kundenkonto bleibt bei dir; diese App bekommt deine Zugangsdaten nie zu sehen.',
   teilen: '<b>Teilen</b><br>Für alles andere: Mail an dich selbst, Cloud-Speicher, Nachricht an die Ordination. Für die ÖGK- und Versicherungs-App nimm stattdessen „speichern“ – die stehen im Teilen-Dialog nicht zur Auswahl.',
   qr: '<b>QR-Code auf der Rechnung</b><br>Trägt der Beleg einen Zahlungs-QR-Code („Zahlen mit Code“), liest die App Betrag, Empfänger und Referenz exakt daraus – deutlich zuverlässiger als aus dem Bild geraten.<br><br>Ohne Code greift automatisch die Texterkennung.',
+  docs: '<b>Warum mehrere Dokumente</b><br>Ein Vorgang braucht je nach Station verschiedene Unterlagen:<br><br><b>Für die ÖGK:</b> Rechnung <i>und</i> Zahlungsnachweis. Der fehlende Zahlungsnachweis ist der häufigste Ablehnungsgrund.<br><br><b>Für die private Versicherung:</b> Rechnung <i>und</i> der ÖGK-Bescheid. Den gibt es erst Wochen später – deshalb wächst die Karte mit dem Vorgang mit.<br><br>Die App prüft vor jedem Upload, ob alles beisammen ist.',
   offen: '<b>Liegezeit</b><br>Zeigt, wie lange der Beleg schon bei der Stelle liegt. Eine Rückmeldung über den Bearbeitungsstand kann diese App nicht abrufen – dafür gibt es für Privatpersonen keine Schnittstelle. Der Zähler erinnert dich nur daran, selbst nachzufragen.',
 };
 
@@ -799,7 +900,12 @@ async function analyzeInvoiceFile(file){
 let invoices = [];
 const isDesktop = ()=> window.matchMedia('(min-width:1024px)').matches;
 
-async function loadAll(){ invoices = await dbAll(); render(); }
+async function loadAll(){
+  invoices = await dbAll();
+  /* Migration einmalig zurueckschreiben, damit sie stabil bleibt. */
+  for(const inv of invoices){ if(migrate(inv)) await dbPut(inv); }
+  render();
+}
 function render(){ renderStats(); renderTabs(); renderBoard(); updateBadge(); }
 
 /* Zahl auf dem App-Icon: was ist bezahlt, aber noch nirgends eingereicht. */
@@ -817,11 +923,23 @@ function renderStats(){
   const offen = invoices.filter(i=> i.status!=='abgeschlossen');
   const sumOffen = offen.reduce((s,i)=> s + (Number(i.amount)||0), 0);
   const sumDone  = invoices.filter(i=> i.status==='abgeschlossen').reduce((s,i)=> s + (Number(i.amount)||0), 0);
+  /* Handlungsbedarf ist die eigentlich interessante Zahl: was haengt
+     an mir, und was haengt an der Gegenseite und dauert zu lange. */
+  const unvollstaendig = invoices.filter(i=>{
+    const s = naechsterSchritt(i);
+    if(!s) return false;
+    const z = s.status === 'oegk_eingereicht' ? 'oegk' : s.status === 'kv_eingereicht' ? 'kv' : null;
+    return z && fehlendeDocs(i, z).length > 0;
+  });
+  const spaet = invoices.filter(i=> ueberfaellig(i) > 0);
+
   document.getElementById('stats').innerHTML = `
-    <div class="stat"><div class="n">${total}</div><div class="l">Rechnungen</div></div>
     <div class="stat"><div class="n">${offen.length}</div><div class="l">in Bearbeitung</div></div>
     <div class="stat"><div class="n">${fmtEUR(sumOffen)}</div><div class="l">offen</div></div>
-    <div class="stat"><div class="n">${fmtEUR(sumDone)}</div><div class="l">abgeschlossen</div></div>`;
+    <div class="stat ${unvollstaendig.length?'warn':''}"><div class="n">${unvollstaendig.length}</div>
+      <div class="l">Dokument fehlt</div></div>
+    <div class="stat ${spaet.length?'late':''}"><div class="n">${spaet.length}</div>
+      <div class="l">überfällig</div></div>`;
 }
 
 function renderTabs(){
@@ -904,6 +1022,22 @@ function liegezeit(inv){
   return 'seit ' + d + ' Tag' + (d === 1 ? '' : 'en');
 }
 
+/* Eine Zeile pro Karte: entweder was fehlt, oder was als Naechstes ansteht.
+   Fehlende Dokumente haben Vorrang – sie blockieren den naechsten Schritt. */
+function kartenHinweis(inv){
+  const schritt = naechsterSchritt(inv);
+  if(!schritt) return '';
+  const ziel = schritt.status === 'oegk_eingereicht' ? 'oegk'
+             : schritt.status === 'kv_eingereicht'   ? 'kv' : null;
+  if(ziel){
+    const fehlt = fehlendeDocs(inv, ziel);
+    if(fehlt.length){
+      return `<span class="nextstep miss">⚠ fehlt: ${escapeHTML(fehlt.map(k=> DOCKINDS[k].kurz).join(', '))}</span>`;
+    }
+  }
+  return `<span class="nextstep">→ ${escapeHTML(schritt.t)}</span>`;
+}
+
 function renderCard(inv, col){
   const el = document.createElement('div');
   el.className = 'card';
@@ -916,11 +1050,12 @@ function renderCard(inv, col){
       <span class="meta"><span>${fmtDate(inv.date)}</span><span class="amt">${fmtEUR(inv.amount)}</span></span>
       <span class="tags">
         <span class="weg-tag" style="--wc:${wegOf(inv).c};--wbg:${wegOf(inv).bg}">${wegOf(inv).icon} ${escapeHTML(wegOf(inv).kurz)}</span>
-        ${liegezeit(inv) ? `<span class="wait-tag">⏳ ${liegezeit(inv)}</span>` : ''}
+        ${(inv.docs||[]).length ? `<span class="file-tag">📎 ${(inv.docs||[]).length}</span>` : ''}
+        ${ueberfaellig(inv) ? `<span class="late-tag">🔔 seit ${ueberfaellig(inv)} Tagen – nachfragen</span>`
+          : (liegezeit(inv) ? `<span class="wait-tag">⏳ ${liegezeit(inv)}</span>` : '')}
         ${inv.needsReview ? `<span class="review-tag">⚠ prüfen</span>` : ''}
-        ${inv.fileName ? `<span class="file-tag">📎 ${escapeHTML(inv.fileName)}</span>` : ''}
       </span>
-      ${naechsterSchritt(inv) ? `<span class="nextstep">→ ${escapeHTML(naechsterSchritt(inv).t)}</span>` : ''}
+      ${kartenHinweis(inv)}
     </button>
     <button class="card-move" type="button" aria-label="Aktionen" title="Aktionen">⋮</button>`;
 
@@ -1027,22 +1162,28 @@ function shareSummary(inv){
 /* Dateiname, der im Auswaehler der Kassen-App sofort auffindbar ist:
    nach Datum sortierbar, mit Aussteller und Betrag, ohne Umlaute und
    Sonderzeichen (manche Uploader stolpern darueber). */
-function belegDateiname(inv){
+function belegDateiname(inv, doc, mitRolle){
   const clean = s => String(s||'')
     .replace(/ä/gi,'ae').replace(/ö/gi,'oe').replace(/ü/gi,'ue').replace(/ß/g,'ss')
     .normalize('NFD').replace(/[̀-ͯ]/g,'')
     .replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40);
-  const ext    = (inv.fileName||'').match(/\.[a-z0-9]+$/i);
+  const d      = doc || (inv.docs||[])[0] || { name: inv.fileName, type: inv.fileType, kind:'rechnung' };
+  const ext    = (d.name||'').match(/\.[a-z0-9]+$/i);
   const datum  = inv.date || new Date().toISOString().slice(0,10);
-  const betrag = (inv.amount !== '' && inv.amount != null && !isNaN(inv.amount))
+  const betrag = (inv.amount !== '' && inv.amount != null && !isNaN(inv.amount) && inv.amount !== 0)
                ? '_' + String(Number(inv.amount).toFixed(2)).replace('.','-') + 'EUR' : '';
-  return 'Rechnung_' + datum + '_' + (clean(inv.title) || 'Beleg') + betrag +
-         (ext ? ext[0] : (inv.fileType === 'application/pdf' ? '.pdf' : '.jpg'));
+  /* Rolle mit in den Namen, sobald mehrere Dateien gleichzeitig
+     abgelegt werden – sonst sind sie im Auswaehler nicht zu trennen. */
+  const rolle  = mitRolle ? '_' + clean(DOCKINDS[d.kind] ? DOCKINDS[d.kind].kurz : 'Beleg') : '';
+  return 'Rechnung_' + datum + '_' + (clean(inv.title) || 'Beleg') + betrag + rolle +
+         (ext ? ext[0] : (d.type === 'application/pdf' ? '.pdf' : '.jpg'));
 }
 
 function invoiceFile(inv){
-  return new File([dataURLtoBlob(inv.fileData, inv.fileType)],
-                  belegDateiname(inv), { type: inv.fileType || 'application/octet-stream' });
+  const d = (inv.docs||[]).find(x=> x.kind === 'rechnung') || (inv.docs||[])[0];
+  if(!d) throw new Error('kein Dokument');
+  return new File([dataURLtoBlob(d.data, d.type)],
+                  belegDateiname(inv, d, false), { type: d.type || 'application/octet-stream' });
 }
 
 /* Hauptweg: Beleg in Downloads ablegen. Von dort holt ihn der
@@ -1051,21 +1192,81 @@ async function saveForUpload(id, targetKey){
   const inv    = invoices.find(i=> i.id === id);
   const target = SEND_TARGETS.find(t=> t.key === targetKey);
   if(!inv || !target) return;
-  if(!inv.fileData){ toast('Kein Beleg angehängt – erst Foto oder PDF hinzufügen'); return; }
 
-  const name = belegDateiname(inv);
-  let url;
-  try{ url = dataURLtoBlobURL(inv.fileData, inv.fileType); }
-  catch(e){ toast('Beleg konnte nicht gelesen werden'); return; }
-  if(!url){ toast('Beleg konnte nicht gelesen werden'); return; }
+  /* Vollstaendigkeit VOR dem Upload pruefen. Ein fehlender Zahlungs-
+     nachweis kostet sonst Wochen, weil die Ablehnung erst spaeter kommt. */
+  const fehlt = fehlendeDocs(inv, targetKey);
+  if(fehlt.length){ zeigeFehlend(id, target, fehlt); return; }
 
-  const a = document.createElement('a');
-  a.href = url; a.download = name; a.rel = 'noopener';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=> URL.revokeObjectURL(url), 30000);
+  const docs = docsFuer(inv, targetKey);
+  if(!docs.length){ toast('Keine Dokumente angehängt'); return; }
+
+  const namen = [];
+  for(let i = 0; i < docs.length; i++){
+    const d = docs[i];
+    const name = belegDateiname(inv, d, docs.length > 1);
+    let url;
+    try{ url = dataURLtoBlobURL(d.data, d.type); }catch(e){ continue; }
+    if(!url) continue;
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 30000);
+    namen.push(name);
+    /* Browser drosseln Mehrfach-Downloads – kurz Luft lassen. */
+    if(i < docs.length - 1) await new Promise(r=> setTimeout(r, 450));
+  }
 
   await copyToClipboard(shareSummary(inv));
-  showUploadSteps(id, target, name);
+  showUploadSteps(id, target, namen);
+}
+
+/* Was fehlt, sagen – und den Weg zum Nachtragen gleich anbieten. */
+function zeigeFehlend(id, target, fehlt){
+  openSheet(`
+    <div class="sheet-head"><h2>Noch nicht vollständig</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <p style="margin:0 0 12px;color:#475569;font-size:14px">
+        ${escapeHTML(target.app)} verlangt zusätzlich:
+      </p>
+      ${fehlt.map(k=>`<div class="merk"><b>${DOCKINDS[k].icon} ${escapeHTML(DOCKINDS[k].label)}</b>
+        <span>${escapeHTML(erklaerung(k))}</span></div>`).join('')}
+      <div class="statuslist" style="margin-top:14px">
+        <button type="button" id="nachtragen" style="--sc:#2563eb;--sbg:#eff6ff">📎 Jetzt nachtragen</button>
+        <button type="button" id="trotzdem" style="--sc:#94a3b8">Trotzdem speichern</button>
+      </div>
+    </div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelector('#nachtragen').addEventListener('click', ()=>{ closeSheet(); openEditor(id); });
+  sheet.querySelector('#trotzdem').addEventListener('click', async ()=>{
+    closeSheet();
+    const inv = invoices.find(i=> i.id === id);
+    const docs = (inv.docs||[]);
+    if(!docs.length){ toast('Keine Dokumente angehängt'); return; }
+    const namen = [];
+    for(const d of docs){
+      const name = belegDateiname(inv, d, docs.length > 1);
+      const url = dataURLtoBlobURL(d.data, d.type);
+      if(!url) continue;
+      const a = document.createElement('a');
+      a.href = url; a.download = name; a.rel='noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=> URL.revokeObjectURL(url), 30000);
+      namen.push(name);
+      await new Promise(r=> setTimeout(r, 450));
+    }
+    await copyToClipboard(shareSummary(inv));
+    showUploadSteps(id, target, namen);
+  });
+}
+function erklaerung(kind){
+  return {
+    rechnung:'Die Honorarnote oder der Apothekenbeleg selbst.',
+    zahlungsnachweis:'Zahlungsvermerk auf der Rechnung, Einzahlungsbeleg, E-Banking-Beleg oder Kontoauszug. Ohne diesen lehnt die ÖGK ab.',
+    oegk_bescheid:'Die Erstattungsmitteilung oder das Ablehnungsschreiben der ÖGK. Die private Versicherung rechnet erst damit ab.',
+    sonstiges:'Ergänzende Unterlage, etwa eine ärztliche Verordnung.',
+  }[kind] || '';
 }
 
 /* Nebenweg: alles, was Teilen tatsaechlich annimmt (Mail, Cloud, Chat). */
@@ -1082,14 +1283,17 @@ async function shareInvoice(id){
   catch(err){ if(!err || err.name !== 'AbortError') toast('Teilen abgebrochen'); }
 }
 
-function showUploadSteps(id, target, name){
+function showUploadSteps(id, target, namen){
+  const liste = Array.isArray(namen) ? namen : [namen];
   openSheet(`
     <div class="sheet-head"><h2>In Downloads gespeichert</h2>
       <button class="info-btn" data-info="senden" aria-label="Warum speichern statt senden?">i</button>
       <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
     <div class="sheet-body">
-      <div class="filechip"><span>📁</span><span class="nm">${escapeHTML(name)}</span></div>
-      <p class="hint" style="margin-top:8px">Bezeichnung, Datum und Betrag liegen in der Zwischenablage.</p>
+      ${liste.map(n=>`<div class="filechip"><span>📁</span><span class="nm">${escapeHTML(n)}</span></div>`).join('')}
+      <p class="hint" style="margin-top:8px">
+        ${liste.length > 1 ? 'Alle ' + liste.length + ' Dateien liegen in Downloads – im Upload alle auswählen. ' : ''}
+        Bezeichnung, Datum und Betrag liegen in der Zwischenablage.</p>
 
       <div class="grouplabel">So geht es in ${escapeHTML(target.app)} weiter</div>
       <ol class="steps">${target.steps.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ol>
@@ -1114,7 +1318,8 @@ function showUploadSteps(id, target, name){
 /* ---------- Sheet-Grundgeruest ---------- */
 const overlay = document.getElementById('overlay');
 const sheet   = document.getElementById('sheet');
-let pendingFile = null;
+let pendingDocs = [];              // Dokumente der offenen Karte
+let editorSubmittedOegk = null;    // fuer die Bedarfspruefung im Editor
 let pendingRef  = '';   // Zahlungsreferenz aus dem QR-Code
 let pendingIban = '';
 
@@ -1126,7 +1331,7 @@ function openSheet(html){
 function closeSheet(){
   overlay.classList.remove('open');
   document.body.classList.remove('locked');
-  sheet.innerHTML = ''; pendingFile = null; pendingRef = ''; pendingIban = '';
+  sheet.innerHTML = ''; pendingDocs = []; editorSubmittedOegk = null; pendingRef = ''; pendingIban = '';
 }
 overlay.addEventListener('click', e=>{ if(e.target === overlay) closeSheet(); });
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && overlay.classList.contains('open')) closeSheet(); });
@@ -1273,7 +1478,8 @@ document.getElementById('btnAdd').addEventListener('click', ()=> openEditor(null
 
 function openEditor(id, presetStatus){
   const inv = id ? invoices.find(i=> i.id === id) : null;
-  pendingFile = inv ? { dataURL: inv.fileData, name: inv.fileName, type: inv.fileType } : null;
+  pendingDocs = inv ? (inv.docs||[]).map(d=> ({...d})) : [];
+  editorSubmittedOegk = inv ? (inv.submittedOegkAt || null) : null;
   pendingRef  = inv ? (inv.reference || '') : '';
   pendingIban = inv ? (inv.iban || '') : '';
 
@@ -1305,20 +1511,20 @@ function openEditor(id, presetStatus){
           `<option value="${c.key}" ${c.key===(inv?inv.status:(presetStatus||'bezahlt'))?'selected':''}>${escapeHTML(c.title)}</option>`).join('')}</select>
       </div>
       <div class="field">
-        <label>Beleg
-          <button class="info-btn" data-info="ocr" aria-label="Wie funktioniert die Erkennung?">i</button>
+        <label>Dokumente
+          <button class="info-btn" data-info="docs" aria-label="Welche Dokumente brauche ich?">i</button>
           <button class="info-btn" data-info="qr" aria-label="QR-Code auf der Rechnung">QR</button>
         </label>
-        <div class="filepick">
+        <div id="docList"></div>
+        <div class="filepick" style="margin-top:8px">
           <button type="button" id="btnCam"><span class="ic">📷</span>Foto aufnehmen</button>
           <button type="button" id="btnFile"><span class="ic">📄</span>Datei wählen</button>
         </div>
         <input type="file" id="f-cam"  accept="image/*" capture="environment" hidden>
-        <input type="file" id="f-file" accept="application/pdf,image/*" hidden>
-        <div id="filechipWrap"></div>
+        <input type="file" id="f-file" accept="application/pdf,image/*" multiple hidden>
         <div id="refWrap"></div>
         <div id="analyze-status"></div>
-        <div class="preview" id="preview"></div>
+        <div id="bedarfWrap"></div>
       </div>
       ${inv ? `<div class="field"><label>Beleg bereitstellen
         <button class="info-btn" data-info="senden" aria-label="Warum speichern statt senden?">i</button></label>
@@ -1337,7 +1543,7 @@ function openEditor(id, presetStatus){
       <button class="primary grow" id="btnSave">Speichern</button>
     </div>`);
 
-  renderFileChip(); renderPreview();
+  renderDocs(); renderBedarf();
   if(pendingRef){
     const rw = document.getElementById('refWrap');
     if(rw) rw.innerHTML = `<div class="filechip"><span>🔖</span><span class="nm">Referenz: ${escapeHTML(pendingRef)}</span></div>`;
@@ -1369,30 +1575,80 @@ function openEditor(id, presetStatus){
   if(inv) sheet.querySelector('#btnDelete').addEventListener('click', ()=> deleteInvoice(id));
 }
 
-function renderFileChip(){
-  const wrap = document.getElementById('filechipWrap');
+/* ---------- Dokumentenliste im Editor ---------- */
+function renderDocs(){
+  const wrap = document.getElementById('docList');
   if(!wrap) return;
-  if(!pendingFile || !pendingFile.name){ wrap.innerHTML = ''; return; }
-  wrap.innerHTML = `<div class="filechip"><span>📎</span><span class="nm">${escapeHTML(pendingFile.name)}</span>
-    <button type="button" id="btnOpenFile" style="min-height:34px;padding:6px 12px;font-size:13px">Öffnen</button></div>`;
-  const b = document.getElementById('btnOpenFile');
-  if(b) b.addEventListener('click', ()=>{
-    const url = dataURLtoBlobURL(pendingFile.dataURL, pendingFile.type);
-    if(url) window.open(url, '_blank');
-    else toast('Datei kann nicht geöffnet werden');
-  });
+  if(!pendingDocs.length){
+    wrap.innerHTML = '<p class="hint" style="margin:0">Noch kein Dokument. Rechnung fotografieren oder PDF wählen.</p>';
+  } else {
+    wrap.innerHTML = pendingDocs.map(d=>`
+      <div class="docrow" data-doc="${d.id}">
+        <span class="docicon">${DOCKINDS[d.kind] ? DOCKINDS[d.kind].icon : '📎'}</span>
+        <div class="docmain">
+          <select class="dockind" data-doc="${d.id}" aria-label="Rolle des Dokuments">
+            ${DOCKIND_KEYS.map(k=>`<option value="${k}" ${k===d.kind?'selected':''}>${escapeHTML(DOCKINDS[k].label)}</option>`).join('')}
+          </select>
+          <span class="docname">${escapeHTML(d.name)}</span>
+        </div>
+        <button type="button" class="docbtn" data-open="${d.id}" aria-label="Öffnen">↗</button>
+        <button type="button" class="docbtn del" data-del="${d.id}" aria-label="Entfernen">✕</button>
+      </div>`).join('');
+  }
+  wrap.querySelectorAll('.dockind').forEach(s=> s.addEventListener('change', ()=>{
+    const d = pendingDocs.find(x=> x.id === s.dataset.doc);
+    if(d){ d.kind = s.value; renderDocs(); renderBedarf(); }
+  }));
+  wrap.querySelectorAll('[data-open]').forEach(b=> b.addEventListener('click', ()=>{
+    const d = pendingDocs.find(x=> x.id === b.dataset.open);
+    const url = d && dataURLtoBlobURL(d.data, d.type);
+    if(url) window.open(url, '_blank'); else toast('Datei kann nicht geöffnet werden');
+  }));
+  wrap.querySelectorAll('[data-del]').forEach(b=> b.addEventListener('click', ()=>{
+    pendingDocs = pendingDocs.filter(x=> x.id !== b.dataset.del);
+    renderDocs(); renderBedarf();
+  }));
 }
-function renderPreview(){
-  const p = document.getElementById('preview');
-  if(!p) return;
-  if(pendingFile && pendingFile.type && pendingFile.type.startsWith('image/')){
-    p.innerHTML = `<img src="${pendingFile.dataURL}" alt="Vorschau des Belegs">`;
-  } else p.innerHTML = '';   /* PDFs nicht inline – auf Android rendert das nicht */
+
+/* Was fehlt noch – live, waehrend man Rollen zuweist. */
+function renderBedarf(){
+  const wrap = document.getElementById('bedarfWrap');
+  if(!wrap) return;
+  const wegSel = document.getElementById('f-weg');
+  const probe  = { weg: wegSel ? wegSel.value : 'wahlarzt', docs: pendingDocs,
+                   submittedOegkAt: editorSubmittedOegk };
+  const rows = SEND_TARGETS
+    .filter(t=> (BEDARF[probe.weg] || {})[t.key])
+    .map(t=>{
+      const fehlt = fehlendeDocs(probe, t.key);
+      return `<div class="bedarf ${fehlt.length?'':'ok'}">
+        <b>${t.icon} ${escapeHTML(t.key === 'oegk' ? 'Für die ÖGK' : 'Für die private KV')}</b>
+        <span>${fehlt.length
+          ? 'fehlt noch: ' + fehlt.map(k=> DOCKINDS[k].kurz).join(', ')
+          : 'vollständig'}</span></div>`;
+    }).join('');
+  wrap.innerHTML = rows || '';
+}
+
+/* Neues Dokument aufnehmen. Rolle wird geraten: das erste ist die
+   Rechnung, danach Zahlungsnachweis, sonst Sonstiges. Umstellbar. */
+function rateRolle(){
+  const have = new Set(pendingDocs.map(d=> d.kind));
+  if(!have.has('rechnung'))         return 'rechnung';
+  if(!have.has('zahlungsnachweis')) return 'zahlungsnachweis';
+  return 'sonstiges';
 }
 
 async function setPendingFile(file){
-  pendingFile = { dataURL: await fileToDataURL(file), name: file.name, type: file.type };
-  renderFileChip(); renderPreview();
+  const doc = { id: uid(), kind: rateRolle(), name: file.name || 'Beleg',
+                type: file.type || '', data: await fileToDataURL(file),
+                addedAt: new Date().toISOString() };
+  pendingDocs.push(doc);
+  renderDocs(); renderBedarf();
+
+  /* Analysiert wird nur die Rechnung – ein Zahlungsnachweis hat keine
+     Rechnungsdaten und wuerde die Felder mit Unsinn ueberschreiben. */
+  if(doc.kind !== 'rechnung') return;
 
   const statusEl = document.getElementById('analyze-status');
   if(statusEl){ statusEl.className=''; statusEl.textContent = '🔍 Beleg wird lokal analysiert …'; }
@@ -1436,16 +1692,19 @@ async function saveEditor(id){
     const statusChanged = inv.status !== status;
     Object.assign(inv, { title, amount, date, note, status, weg, needsReview:false, updatedAt:now,
                          reference: pendingRef, iban: pendingIban });
-    if(pendingFile){ inv.fileName = pendingFile.name; inv.fileType = pendingFile.type; inv.fileData = pendingFile.dataURL; }
+    inv.docs = pendingDocs;
+    const haupt = pendingDocs.find(d=> d.kind === 'rechnung') || pendingDocs[0];
+    inv.fileName = haupt ? haupt.name : ''; inv.fileType = haupt ? haupt.type : ''; inv.fileData = haupt ? haupt.data : '';
     inv.history = inv.history || [];
     if(statusChanged) inv.history.push({ status, at:now, label: colByKey[status].title });
     await dbPut(inv);
   } else {
     await dbPut({
       id: uid(), title, amount, date, note, status, weg,
-      fileName: pendingFile ? pendingFile.name : '',
-      fileType: pendingFile ? pendingFile.type : '',
-      fileData: pendingFile ? pendingFile.dataURL : '',
+      docs: pendingDocs,
+      fileName: (pendingDocs[0]||{}).name || '',
+      fileType: (pendingDocs[0]||{}).type || '',
+      fileData: (pendingDocs[0]||{}).data || '',
       reference: pendingRef, iban: pendingIban,
       createdAt:now, updatedAt:now, needsReview:false,
       history:[{ status, at:now, label: colByKey[status].title }]

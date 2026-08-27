@@ -272,6 +272,56 @@ button:disabled{ opacity:.5; }
 .steps{ margin:0; padding-left:22px; font-size:14px; line-height:1.55; color:#334155; }
 .steps li{ margin-bottom:7px; }
 
+.linklike{
+  border:none; background:none; padding:0; min-height:0; font:inherit;
+  color:var(--blue); text-decoration:underline; font-weight:700; cursor:pointer;
+}
+
+/* Karte: Weg-Kennzeichnung und naechster Schritt */
+.card .weg-tag{
+  font-size:11px; background:var(--wbg,#f1f5f9); color:var(--wc,#475569);
+  border:1px solid var(--wc,#cbd5e1); border-radius:6px; padding:2px 7px; font-weight:700;
+}
+.card .nextstep{
+  display:block; margin-top:7px; font-size:12px; font-weight:700; color:#0f766e;
+  background:#f0fdfa; border-radius:6px; padding:4px 8px;
+}
+.statuslist button.irrelevant{ opacity:.55; }
+
+/* Prozess-Uebersicht */
+.wegcard{
+  border:1.5px solid var(--wc); border-radius:12px; padding:14px;
+  margin:12px 0; background:var(--wbg);
+}
+.wegcard.an{ box-shadow:0 0 0 3px color-mix(in srgb, var(--wc) 25%, transparent); }
+.wegtitle{
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  font-weight:800; font-size:14.5px; color:var(--wc); margin-bottom:10px;
+}
+.wegnow{
+  font-size:10.5px; background:var(--wc); color:#fff; border-radius:20px;
+  padding:2px 9px; font-weight:800; text-transform:uppercase; letter-spacing:.03em;
+}
+.wegsteps{ margin:0; padding-left:20px; font-size:13.5px; line-height:1.5; color:#334155; }
+.wegsteps li{ margin-bottom:9px; }
+.wegsteps li b{ display:block; color:#0f172a; }
+.wegsteps li span{ color:#475569; }
+.wegsteps li.opt{ opacity:.85; }
+.optmark{
+  font-size:10px; background:#e2e8f0; color:#475569; border-radius:5px;
+  padding:1px 6px; font-weight:700; vertical-align:middle;
+}
+.weghint{
+  margin:11px 0 0; font-size:12.5px; line-height:1.5; color:#475569;
+  background:rgba(255,255,255,.75); border-radius:8px; padding:9px 11px;
+}
+.merk{
+  border-left:3px solid #f59e0b; background:#fffbeb; border-radius:0 8px 8px 0;
+  padding:9px 12px; margin-bottom:8px; font-size:13px; line-height:1.5;
+}
+.merk b{ display:block; color:#92400e; margin-bottom:2px; }
+.merk span{ color:#78350f; }
+
 .history{ margin-top:6px; border-top:1px solid var(--line); padding-top:14px; }
 .history h3{ font-size:13px; margin:0 0 8px; color:var(--sub); }
 .history ul{ list-style:none; margin:0; padding:0; font-size:13px; }
@@ -333,6 +383,7 @@ button:disabled{ opacity:.5; }
 <header class="topbar">
   <h1>Rechnungs-Tracker</h1>
   <span class="saved-indicator" id="savedIndicator"></span>
+  <button class="icon-btn" id="btnWege" aria-label="Wie die Erstattung läuft" title="Wie die Erstattung läuft">🗺</button>
   <button class="info-btn" data-info="app" aria-label="Was macht diese App?">i</button>
   <button class="icon-btn" id="btnMenu" aria-label="Menü">⋯</button>
 </header>
@@ -370,6 +421,68 @@ const COLUMNS = [
   { key:'abgeschlossen',    title:'5 · Abgeschlossen',              c:'#16a34a', short:'Fertig', bg:'#f0fdf4' },
 ];
 const colByKey = Object.fromEntries(COLUMNS.map(c=>[c.key,c]));
+
+/* ==================================================================
+   Die drei Erstattungswege. Wichtig: sie sind NICHT gleich.
+   Beim Kassenrezept gibt es gar keinen ÖGK-Schritt – eine solche
+   Rechnung darf nie in "Bei ÖGK eingereicht" haengen bleiben.
+   Jeder Schritt verweist auf die Spalte, die er im Board bedeutet
+   (oder auf null, wenn er ausserhalb des Boards passiert).
+   ================================================================== */
+const WEGE = {
+  wahlarzt: {
+    label:'Wahlarzt', kurz:'Wahlarzt', icon:'🩺', c:'#2563eb', bg:'#eff6ff',
+    steps:[
+      { t:'Arzttermin',              d:'Bei einem Wahlarzt deiner Wahl.',                          status:null },
+      { t:'Rechnung zahlen',         d:'Honorarnote direkt beim Arzt bezahlen.',                    status:'bezahlt' },
+      { t:'Bei ÖGK einreichen',      d:'Läuft bei vielen Ordinationen automatisch über den Arzt.',  status:'oegk_eingereicht' },
+      { t:'ÖGK-Rückzahlung',         d:'Nach einigen Wochen, rund 20 % der Kosten – mit Beleg.',    status:'oegk_erstattet' },
+      { t:'Bei privater KV einreichen', d:'ÖGK-Beleg und Restbetrag bei der Versicherung einreichen.', status:'kv_eingereicht' },
+    ],
+    hinweis:'Übernimmt die ÖGK die Leistung gar nicht, entfallen die beiden ÖGK-Schritte – dann geht die Rechnung direkt an die private Versicherung.'
+  },
+  kassenrezept: {
+    label:'Apotheke – Kassenrezept', kurz:'Kassenrezept', icon:'💊', c:'#0891b2', bg:'#ecfeff',
+    steps:[
+      { t:'Rezept einlösen',            d:'Du zahlst nur die Rezeptgebühr (7,55 € pro Packung).', status:'bezahlt' },
+      { t:'Bei privater KV einreichen', d:'Beleg direkt bei der privaten Versicherung einreichen.', status:'kv_eingereicht' },
+    ],
+    hinweis:'Kein ÖGK-Schritt: Die Kasse hat ihren Anteil schon in der Apotheke übernommen.'
+  },
+  privatrezept: {
+    label:'Apotheke – Privatrezept / freier Kauf', kurz:'Privatrezept', icon:'🧾', c:'#d97706', bg:'#fffbeb',
+    steps:[
+      { t:'Kauf zahlen',                d:'Du zahlst den vollen Apothekenpreis.',                    status:'bezahlt' },
+      { t:'ÖGK einreichen (falls möglich)', d:'Nur wenn das Präparat im Kassenkatalog steht.',        status:'oegk_eingereicht', optional:true },
+      { t:'Bei privater KV einreichen', d:'Beleg und Restbetrag bei der Versicherung einreichen.',    status:'kv_eingereicht' },
+    ],
+    hinweis:'Der ÖGK-Schritt ist optional. Steht das Präparat nicht im Kassenkatalog, geht der Beleg direkt an die private Versicherung.'
+  },
+};
+const WEG_KEYS  = Object.keys(WEGE);
+const wegOf     = inv => WEGE[inv && inv.weg] || WEGE.wahlarzt;
+
+/* Welche Spalte kommt fuer diesen Beleg als naechstes? */
+function naechsterSchritt(inv){
+  const weg = wegOf(inv);
+  const idx = weg.steps.findIndex(s=> s.status === inv.status);
+  if(inv.status === 'abgeschlossen') return null;
+  for(let i = idx + 1; i < weg.steps.length; i++){
+    if(weg.steps[i].status) return weg.steps[i];
+  }
+  return { t:'Abschließen', d:'Alles erstattet – Karte auf „Abgeschlossen“ setzen.', status:'abgeschlossen' };
+}
+/* Spalten, die auf diesem Weg ueberhaupt vorkommen. */
+function statusRelevant(weg, key){
+  if(key === 'bezahlt' || key === 'abgeschlossen') return true;
+  return WEGE[weg] ? WEGE[weg].steps.some(s=> s.status === key) : true;
+}
+
+const HINWEISE = [
+  { t:'Belege aufbewahren', d:'Original-Rechnungen und ÖGK-Bestätigungen bis zur vollständigen Erstattung sicher verwahren – Fristen bis zu 3 Jahre.' },
+  { t:'Nicht alles wird erstattet', d:'Nahrungsergänzungsmittel, Vitaminpräparate, Verhütungsmittel und Kosmetik sind meist ausgeschlossen.' },
+  { t:'Erstattungsgrenze', d:'Kasse und private Versicherung erstatten zusammen maximal 100 % der tatsächlichen Kosten.' },
+];
 
 /* ---------- Erklärtexte: stehen nicht mehr dauerhaft im Layout,
    sondern nur hinter den ⓘ-Buttons (Tap am Handy, Hover am Desktop). ---------- */
@@ -801,11 +914,13 @@ function renderCard(inv, col){
     <button class="card-main" type="button">
       <span class="title">${escapeHTML(inv.title || 'Ohne Bezeichnung')}</span>
       <span class="meta"><span>${fmtDate(inv.date)}</span><span class="amt">${fmtEUR(inv.amount)}</span></span>
-      ${(inv.fileName || inv.needsReview || liegezeit(inv)) ? `<span class="tags">
+      <span class="tags">
+        <span class="weg-tag" style="--wc:${wegOf(inv).c};--wbg:${wegOf(inv).bg}">${wegOf(inv).icon} ${escapeHTML(wegOf(inv).kurz)}</span>
         ${liegezeit(inv) ? `<span class="wait-tag">⏳ ${liegezeit(inv)}</span>` : ''}
         ${inv.needsReview ? `<span class="review-tag">⚠ prüfen</span>` : ''}
         ${inv.fileName ? `<span class="file-tag">📎 ${escapeHTML(inv.fileName)}</span>` : ''}
-      </span>` : ''}
+      </span>
+      ${naechsterSchritt(inv) ? `<span class="nextstep">→ ${escapeHTML(naechsterSchritt(inv).t)}</span>` : ''}
     </button>
     <button class="card-move" type="button" aria-label="Aktionen" title="Aktionen">⋮</button>`;
 
@@ -847,7 +962,7 @@ async function createInvoiceFromFile(file, status){
   const id = uid();
   await dbPut({
     id, title: file.name.replace(/\.[a-z0-9]+$/i,''), amount:'', date: now.slice(0,10), note:'',
-    status, fileName:file.name, fileType:file.type, fileData: await fileToDataURL(file),
+    status, weg:'wahlarzt', fileName:file.name, fileType:file.type, fileData: await fileToDataURL(file),
     createdAt:now, updatedAt:now, needsReview:false,
     history:[{ status, at:now, label: colByKey[status].title }]
   });
@@ -1047,12 +1162,18 @@ function openMoveSheet(id){
 
       <div class="grouplabel">Status von Hand setzen</div>
       <div class="statuslist">
-        ${COLUMNS.map(c=>`
+        ${COLUMNS.map(c=>{
+          const relevant = statusRelevant(inv.weg || 'wahlarzt', c.key);
+          return `
           <button type="button" data-status="${c.key}" style="--sc:${c.c};--sbg:${c.bg}"
-                  aria-current="${c.key===inv.status}">
-            ${escapeHTML(c.title)}${c.key===inv.status?'<span class="tick">✓ aktuell</span>':''}
-          </button>`).join('')}
+                  aria-current="${c.key===inv.status}" class="${relevant?'':'irrelevant'}">
+            ${escapeHTML(c.title)}
+            ${c.key===inv.status ? '<span class="tick">✓ aktuell</span>'
+              : (relevant ? '' : '<span class="tick" style="color:#94a3b8;font-weight:600">nicht nötig</span>')}
+          </button>`;}).join('')}
       </div>
+      <p class="hint">Weg: ${wegOf(inv).icon} ${escapeHTML(wegOf(inv).label)} ·
+        <button type="button" class="linklike" data-wege="1">Ablauf ansehen</button></p>
     </div>`);
   sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
   sheet.querySelectorAll('[data-send]').forEach(b=>{
@@ -1064,6 +1185,8 @@ function openMoveSheet(id){
   });
   const shareBtn = sheet.querySelector('[data-share]');
   if(shareBtn) shareBtn.addEventListener('click', ()=>{ closeSheet(); shareInvoice(id); });
+  const wegeBtn = sheet.querySelector('[data-wege]');
+  if(wegeBtn) wegeBtn.addEventListener('click', ()=> openWegeSheet(inv.weg || 'wahlarzt'));
   sheet.querySelectorAll('[data-status]').forEach(b=>{
     b.addEventListener('click', async ()=>{
       const s = b.dataset.status;
@@ -1072,6 +1195,48 @@ function openMoveSheet(id){
     });
   });
 }
+
+/* ---------- Prozess-Uebersicht: die drei Wege ----------
+   Bewusst als eigener Bildschirm und nicht als eingebettetes PDF:
+   Das Infoblatt ist Querformat und auf einem 375px-Display unlesbar.
+   Das PDF bleibt als Download fuer Ausdruck und Weitergabe. */
+function openWegeSheet(highlight){
+  openSheet(`
+    <div class="sheet-head"><h2>Wie die Erstattung läuft</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <p class="hint" style="margin:0 0 4px">Drei Wege – sie unterscheiden sich darin, ob die ÖGK überhaupt beteiligt ist.</p>
+      ${WEG_KEYS.map(k=>{
+        const w = WEGE[k];
+        const an = (highlight === k);
+        return `
+        <div class="wegcard ${an?'an':''}" style="--wc:${w.c};--wbg:${w.bg}">
+          <div class="wegtitle"><span>${w.icon}</span>${escapeHTML(w.label)}
+            ${an?'<span class="wegnow">dieser Beleg</span>':''}</div>
+          <ol class="wegsteps">
+            ${w.steps.map(s=>`
+              <li${s.optional?' class="opt"':''}>
+                <b>${escapeHTML(s.t)}</b>${s.optional?' <span class="optmark">optional</span>':''}
+                <span>${escapeHTML(s.d)}</span>
+              </li>`).join('')}
+          </ol>
+          <p class="weghint">${escapeHTML(w.hinweis)}</p>
+        </div>`;
+      }).join('')}
+
+      <div class="grouplabel">Woran man sonst scheitert</div>
+      ${HINWEISE.map(h=>`<div class="merk"><b>${escapeHTML(h.t)}</b><span>${escapeHTML(h.d)}</span></div>`).join('')}
+
+      <div class="grouplabel">Zum Ausdrucken</div>
+      <div class="statuslist">
+        <button type="button" id="pdfBtn" style="--sc:#64748b">📄 Infoblatt als PDF öffnen</button>
+      </div>
+    </div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelector('#pdfBtn').addEventListener('click', ()=>
+    window.open('./docs/kostenerstattung-infoblatt.pdf', '_blank'));
+}
+document.getElementById('btnWege').addEventListener('click', ()=> openWegeSheet(null));
 
 /* ---------- Menue-Sheet ---------- */
 document.getElementById('btnMenu').addEventListener('click', ()=>{
@@ -1129,6 +1294,12 @@ function openEditor(id, presetStatus){
           <input type="date" id="f-date" value="${inv ? inv.date : new Date().toISOString().slice(0,10)}"></div>
       </div>
       <div class="field">
+        <label>Art des Belegs</label>
+        <select id="f-weg">${WEG_KEYS.map(k=>
+          `<option value="${k}" ${k===(inv?(inv.weg||'wahlarzt'):'wahlarzt')?'selected':''}>${WEGE[k].icon} ${escapeHTML(WEGE[k].label)}</option>`).join('')}</select>
+        <p class="hint" id="wegHint"></p>
+      </div>
+      <div class="field">
         <label>Status</label>
         <select id="f-status">${COLUMNS.map(c=>
           `<option value="${c.key}" ${c.key===(inv?inv.status:(presetStatus||'bezahlt'))?'selected':''}>${escapeHTML(c.title)}</option>`).join('')}</select>
@@ -1181,6 +1352,19 @@ function openEditor(id, presetStatus){
   [cam, fil].forEach(input=> input.addEventListener('change', async ()=>{
     if(input.files[0]) await setPendingFile(input.files[0]);
   }));
+  /* Belegart bestimmt den Weg – Hinweis direkt darunter mitfuehren. */
+  const wegSel = sheet.querySelector('#f-weg');
+  const zeigeWegHinweis = ()=>{
+    const w = WEGE[wegSel.value];
+    const h = sheet.querySelector('#wegHint');
+    if(h) h.innerHTML = escapeHTML(w.hinweis) +
+      ' <button type="button" class="linklike" id="wegMehr">Alle Wege ansehen</button>';
+    const mehr = sheet.querySelector('#wegMehr');
+    if(mehr) mehr.addEventListener('click', ()=> openWegeSheet(wegSel.value));
+  };
+  wegSel.addEventListener('change', zeigeWegHinweis);
+  zeigeWegHinweis();
+
   sheet.querySelector('#btnSave').addEventListener('click', ()=> saveEditor(id));
   if(inv) sheet.querySelector('#btnDelete').addEventListener('click', ()=> deleteInvoice(id));
 }
@@ -1243,13 +1427,14 @@ async function saveEditor(id){
   const amount = document.getElementById('f-amount').value;
   const date   = document.getElementById('f-date').value;
   const status = document.getElementById('f-status').value;
+  const weg    = (document.getElementById('f-weg')||{}).value || 'wahlarzt';
   const note   = document.getElementById('f-note').value;
   const now    = new Date().toISOString();
 
   if(id){
     const inv = invoices.find(i=> i.id === id);
     const statusChanged = inv.status !== status;
-    Object.assign(inv, { title, amount, date, note, status, needsReview:false, updatedAt:now,
+    Object.assign(inv, { title, amount, date, note, status, weg, needsReview:false, updatedAt:now,
                          reference: pendingRef, iban: pendingIban });
     if(pendingFile){ inv.fileName = pendingFile.name; inv.fileType = pendingFile.type; inv.fileData = pendingFile.dataURL; }
     inv.history = inv.history || [];
@@ -1257,7 +1442,7 @@ async function saveEditor(id){
     await dbPut(inv);
   } else {
     await dbPut({
-      id: uid(), title, amount, date, note, status,
+      id: uid(), title, amount, date, note, status, weg,
       fileName: pendingFile ? pendingFile.name : '',
       fileType: pendingFile ? pendingFile.type : '',
       fileData: pendingFile ? pendingFile.dataURL : '',

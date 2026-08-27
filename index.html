@@ -269,6 +269,8 @@ button:disabled{ opacity:.5; }
 }
 .grouplabel:first-of-type{ margin-top:4px; }
 .hint{ font-size:12.5px; color:#94a3b8; margin:8px 0 0; }
+.steps{ margin:0; padding-left:22px; font-size:14px; line-height:1.55; color:#334155; }
+.steps li{ margin-bottom:7px; }
 
 .history{ margin-top:6px; border-top:1px solid var(--line); padding-top:14px; }
 .history h3{ font-size:13px; margin:0 0 8px; color:var(--sub); }
@@ -377,17 +379,39 @@ const INFO = {
   erstattung: '<b>Wird das erstattet?</b><br>Ob die ÖGK eine Leistung tatsächlich und in welcher Höhe erstattet, kann dieses Tool nicht bestimmen. Das hängt vom genauen Tarifposten ab und muss bei der ÖGK bzw. deiner Versicherung nachgefragt werden.',
   privacy: '<b>Wo liegen meine Daten?</b><br>Ausschließlich auf diesem Gerät (IndexedDB im Browser). Keine Übertragung an einen Server, auch die Dokumentenanalyse läuft offline.<br><br><b>Achtung:</b> „Browserdaten löschen“ kann diese Daten mitlöschen. Deshalb regelmäßig „Sichern“ nutzen.',
   move: '<b>Aktionen zur Karte</b><br>Beleg an die ÖGK- oder Versicherungs-App weitergeben, oder den Status von Hand setzen. Am Desktop funktioniert zusätzlich Ziehen mit der Maus.',
-  senden: '<b>Wie das Senden funktioniert</b><br>Die App übergibt den Beleg an Androids Teilen-Dialog. Dort wählst du „Meine ÖGK“ oder deine Versicherungs-App, die Datei landet direkt in deren Upload.<br><br>Das <b>Einreichen selbst bestätigst du dort</b> – die Anmeldung mit ID Austria bzw. deinem Kundenkonto bleibt bei dir. Diese App bekommt deine Zugangsdaten nie zu sehen.<br><br>Bezeichnung, Datum und Betrag liegen gleichzeitig in der Zwischenablage, falls das Formular sie als Text will.',
+  senden: '<b>Warum „speichern“ und nicht „senden“</b><br>Die ÖGK- und die Generali-App nehmen keine geteilten Dateien entgegen. Sie holen den Beleg stattdessen selbst über ihren eigenen Dateiauswähler – deshalb stehen sie im Teilen-Dialog von Android gar nicht drin.<br><br>Diese App legt den Beleg darum unter einem eindeutigen Namen in <b>Downloads</b> ab. Dort findest du ihn im Auswähler beider Apps als obersten Eintrag.<br><br>Bezeichnung, Datum und Betrag liegen gleichzeitig in der Zwischenablage – für die Formularfelder.<br><br>Das <b>Einreichen selbst bestätigst du dort</b>. Die Anmeldung mit ID Austria bzw. deinem Kundenkonto bleibt bei dir; diese App bekommt deine Zugangsdaten nie zu sehen.',
+  teilen: '<b>Teilen</b><br>Für alles andere: Mail an dich selbst, Cloud-Speicher, Nachricht an die Ordination. Für die ÖGK- und Versicherungs-App nimm stattdessen „speichern“ – die stehen im Teilen-Dialog nicht zur Auswahl.',
   qr: '<b>QR-Code auf der Rechnung</b><br>Trägt der Beleg einen Zahlungs-QR-Code („Zahlen mit Code“), liest die App Betrag, Empfänger und Referenz exakt daraus – deutlich zuverlässiger als aus dem Bild geraten.<br><br>Ohne Code greift automatisch die Texterkennung.',
   offen: '<b>Liegezeit</b><br>Zeigt, wie lange der Beleg schon bei der Stelle liegt. Eine Rückmeldung über den Bearbeitungsstand kann diese App nicht abrufen – dafür gibt es für Privatpersonen keine Schnittstelle. Der Zähler erinnert dich nur daran, selbst nachzufragen.',
 };
 
-/* Ziele fuer die Weitergabe. Bewusst keine App-Deeplinks: die sind
-   undokumentiert und brechen bei jedem Update. Der System-Teilen-Dialog
-   listet alles auf, was PDFs/Bilder annimmt. */
+/* Ziele fuer die Weitergabe.
+   WICHTIG – Designentscheidung nach Praxistest: Weder die Meine-ÖGK-App
+   noch die Generali-App registrieren sich bei Android als Empfaenger fuer
+   geteilte Dateien. Beide holen die Datei stattdessen selbst ueber ihren
+   eigenen Dateiauswaehler ("Foto machen oder Dokument aus einem Ordner
+   waehlen"). navigator.share() laeuft deshalb ins Leere – die Apps stehen
+   gar nicht im Teilen-Dialog.
+   Der funktionierende Weg ist umgekehrt: Beleg unter einem eindeutigen,
+   nach Datum sortierbaren Namen in "Downloads" ablegen. Dort findet ihn
+   der Auswaehler beider Apps als obersten Eintrag. */
 const SEND_TARGETS = [
-  { key:'oegk', label:'An ÖGK senden',            icon:'🏛', status:'oegk_eingereicht', stamp:'submittedOegkAt' },
-  { key:'kv',   label:'An private Versicherung',  icon:'🏥', status:'kv_eingereicht',   stamp:'submittedKvAt'   },
+  { key:'oegk', label:'Für ÖGK-Upload speichern', icon:'🏛',
+    status:'oegk_eingereicht', stamp:'submittedOegkAt', app:'Meine ÖGK',
+    steps:[
+      'App „Meine ÖGK“ öffnen und mit ID Austria anmelden',
+      'Kostenerstattung → Wahlarztrechnung einreichen',
+      'Bei der Belegauswahl „Dokument aus Ordner“ statt Foto wählen',
+      'Unter „Downloads“ liegt die Datei ganz oben',
+      'Zusätzlich den Zahlungsnachweis anhängen – ohne den wird abgelehnt',
+    ]},
+  { key:'kv',   label:'Für Versicherung speichern', icon:'🏥',
+    status:'kv_eingereicht', stamp:'submittedKvAt', app:'deine Versicherungs-App',
+    steps:[
+      'Versicherungs-App öffnen und anmelden',
+      'Rechnung einreichen → Dokument auswählen',
+      'Unter „Downloads“ liegt die Datei ganz oben',
+    ]},
 ];
 
 /* ---------- IndexedDB ---------- */
@@ -885,55 +909,80 @@ function shareSummary(inv){
   ].filter(Boolean).join('\n');
 }
 
-async function sendInvoiceTo(id, targetKey){
+/* Dateiname, der im Auswaehler der Kassen-App sofort auffindbar ist:
+   nach Datum sortierbar, mit Aussteller und Betrag, ohne Umlaute und
+   Sonderzeichen (manche Uploader stolpern darueber). */
+function belegDateiname(inv){
+  const clean = s => String(s||'')
+    .replace(/ä/gi,'ae').replace(/ö/gi,'oe').replace(/ü/gi,'ue').replace(/ß/g,'ss')
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40);
+  const ext    = (inv.fileName||'').match(/\.[a-z0-9]+$/i);
+  const datum  = inv.date || new Date().toISOString().slice(0,10);
+  const betrag = (inv.amount !== '' && inv.amount != null && !isNaN(inv.amount))
+               ? '_' + String(Number(inv.amount).toFixed(2)).replace('.','-') + 'EUR' : '';
+  return 'Rechnung_' + datum + '_' + (clean(inv.title) || 'Beleg') + betrag +
+         (ext ? ext[0] : (inv.fileType === 'application/pdf' ? '.pdf' : '.jpg'));
+}
+
+function invoiceFile(inv){
+  return new File([dataURLtoBlob(inv.fileData, inv.fileType)],
+                  belegDateiname(inv), { type: inv.fileType || 'application/octet-stream' });
+}
+
+/* Hauptweg: Beleg in Downloads ablegen. Von dort holt ihn der
+   Dateiauswaehler der ÖGK- bzw. Versicherungs-App. */
+async function saveForUpload(id, targetKey){
   const inv    = invoices.find(i=> i.id === id);
   const target = SEND_TARGETS.find(t=> t.key === targetKey);
   if(!inv || !target) return;
   if(!inv.fileData){ toast('Kein Beleg angehängt – erst Foto oder PDF hinzufügen'); return; }
 
-  let file;
-  try{
-    file = new File([dataURLtoBlob(inv.fileData, inv.fileType)],
-                    inv.fileName || 'rechnung', { type: inv.fileType || 'application/octet-stream' });
-  }catch(e){ toast('Beleg konnte nicht gelesen werden'); return; }
+  const name = belegDateiname(inv);
+  let url;
+  try{ url = dataURLtoBlobURL(inv.fileData, inv.fileType); }
+  catch(e){ toast('Beleg konnte nicht gelesen werden'); return; }
+  if(!url){ toast('Beleg konnte nicht gelesen werden'); return; }
 
-  const summary = shareSummary(inv);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 30000);
 
-  if(navigator.canShare && navigator.canShare({ files:[file] })){
-    await copyToClipboard(summary);          // Formularfelder per Einfügen befüllbar
-    try{
-      await navigator.share({ files:[file], title: inv.title || 'Rechnung', text: summary });
-    }catch(err){
-      if(err && err.name === 'AbortError') return;   // Nutzer hat abgebrochen
-      toast('Teilen nicht möglich'); return;
-    }
-    askSubmitted(id, target);
-  } else {
-    /* Desktop und aeltere Browser: Datei herunterladen, Text kopieren. */
-    const url = dataURLtoBlobURL(inv.fileData, inv.fileType);
-    if(url){
-      const a = document.createElement('a');
-      a.href = url; a.download = inv.fileName || 'rechnung';
-      a.click();
-      setTimeout(()=> URL.revokeObjectURL(url), 10000);
-    }
-    await copyToClipboard(summary);
-    toast('Teilen geht hier nicht – Beleg heruntergeladen, Daten kopiert');
-    askSubmitted(id, target);
-  }
+  await copyToClipboard(shareSummary(inv));
+  showUploadSteps(id, target, name);
 }
 
-function askSubmitted(id, target){
+/* Nebenweg: alles, was Teilen tatsaechlich annimmt (Mail, Cloud, Chat). */
+async function shareInvoice(id){
+  const inv = invoices.find(i=> i.id === id);
+  if(!inv || !inv.fileData){ toast('Kein Beleg angehängt'); return; }
+  let file;
+  try{ file = invoiceFile(inv); }catch(e){ toast('Beleg konnte nicht gelesen werden'); return; }
+  if(!(navigator.canShare && navigator.canShare({ files:[file] }))){
+    toast('Teilen wird hier nicht unterstützt – nimm „speichern“'); return;
+  }
+  await copyToClipboard(shareSummary(inv));
+  try{ await navigator.share({ files:[file], title: inv.title || 'Rechnung', text: shareSummary(inv) }); }
+  catch(err){ if(!err || err.name !== 'AbortError') toast('Teilen abgebrochen'); }
+}
+
+function showUploadSteps(id, target, name){
   openSheet(`
-    <div class="sheet-head"><h2>Eingereicht?</h2>
+    <div class="sheet-head"><h2>In Downloads gespeichert</h2>
+      <button class="info-btn" data-info="senden" aria-label="Warum speichern statt senden?">i</button>
       <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
     <div class="sheet-body">
-      <p style="margin:0 0 14px;color:#475569;font-size:14px">
-        Der Beleg wurde übergeben. Hast du ihn dort auch tatsächlich abgeschickt?
-      </p>
+      <div class="filechip"><span>📁</span><span class="nm">${escapeHTML(name)}</span></div>
+      <p class="hint" style="margin-top:8px">Bezeichnung, Datum und Betrag liegen in der Zwischenablage.</p>
+
+      <div class="grouplabel">So geht es in ${escapeHTML(target.app)} weiter</div>
+      <ol class="steps">${target.steps.map(s=>`<li>${escapeHTML(s)}</li>`).join('')}</ol>
+
+      <div class="grouplabel">Danach</div>
       <div class="statuslist">
         <button type="button" id="yesSub" style="--sc:${colByKey[target.status].c};--sbg:${colByKey[target.status].bg}">
-          ✓ Ja – auf „${escapeHTML(colByKey[target.status].short)}“ setzen</button>
+          ✓ Eingereicht – auf „${escapeHTML(colByKey[target.status].short)}“ setzen</button>
         <button type="button" id="noSub" style="--sc:#94a3b8">Noch nicht – Status lassen</button>
       </div>
     </div>`);
@@ -982,16 +1031,19 @@ function openMoveSheet(id){
       <div class="field"><label>${escapeHTML(inv.title || 'Ohne Bezeichnung')}
         ${inv.amount !== '' && inv.amount != null ? '· ' + fmtEUR(inv.amount) : ''}</label></div>
 
-      <div class="grouplabel">Beleg weitergeben
-        <button class="info-btn" data-info="senden" aria-label="Wie funktioniert das Senden?">i</button></div>
+      <div class="grouplabel">Beleg bereitstellen
+        <button class="info-btn" data-info="senden" aria-label="Warum speichern statt senden?">i</button></div>
       <div class="statuslist">
         ${SEND_TARGETS.map(t=>`
           <button type="button" data-send="${t.key}" style="--sc:${colByKey[t.status].c};--sbg:${colByKey[t.status].bg}"
                   ${hatBeleg?'':'disabled'}>
             <span>${t.icon}</span>${escapeHTML(t.label)}
           </button>`).join('')}
+        <button type="button" data-share="1" style="--sc:#64748b" ${hatBeleg?'':'disabled'}>
+          <span>📤</span>Teilen (Mail, Cloud …)
+        </button>
       </div>
-      ${hatBeleg ? '' : '<p class="hint">Kein Beleg angehängt – zum Senden erst ein Foto oder PDF hinzufügen.</p>'}
+      ${hatBeleg ? '' : '<p class="hint">Kein Beleg angehängt – erst ein Foto oder PDF hinzufügen.</p>'}
 
       <div class="grouplabel">Status von Hand setzen</div>
       <div class="statuslist">
@@ -1007,9 +1059,11 @@ function openMoveSheet(id){
     b.addEventListener('click', ()=>{
       const key = b.dataset.send;
       closeSheet();
-      sendInvoiceTo(id, key);
+      saveForUpload(id, key);
     });
   });
+  const shareBtn = sheet.querySelector('[data-share]');
+  if(shareBtn) shareBtn.addEventListener('click', ()=>{ closeSheet(); shareInvoice(id); });
   sheet.querySelectorAll('[data-status]').forEach(b=>{
     b.addEventListener('click', async ()=>{
       const s = b.dataset.status;
@@ -1095,11 +1149,11 @@ function openEditor(id, presetStatus){
         <div id="analyze-status"></div>
         <div class="preview" id="preview"></div>
       </div>
-      ${inv ? `<div class="field"><label>Beleg weitergeben
-        <button class="info-btn" data-info="senden" aria-label="Wie funktioniert das Senden?">i</button></label>
+      ${inv ? `<div class="field"><label>Beleg bereitstellen
+        <button class="info-btn" data-info="senden" aria-label="Warum speichern statt senden?">i</button></label>
         <div class="filepick">
           ${SEND_TARGETS.map(t=>`<button type="button" data-send="${t.key}" ${inv.fileData?'':'disabled'}>
-            <span class="ic">${t.icon}</span>${escapeHTML(t.key==='oegk'?'An ÖGK':'An private KV')}</button>`).join('')}
+            <span class="ic">${t.icon}</span>${escapeHTML(t.key==='oegk'?'Für ÖGK':'Für Versicherung')}</button>`).join('')}
         </div></div>` : ''}
       <div class="field">
         <label>Notiz</label>
@@ -1118,7 +1172,7 @@ function openEditor(id, presetStatus){
     if(rw) rw.innerHTML = `<div class="filechip"><span>🔖</span><span class="nm">Referenz: ${escapeHTML(pendingRef)}</span></div>`;
   }
   sheet.querySelectorAll('[data-send]').forEach(b=>{
-    b.addEventListener('click', ()=>{ const k = b.dataset.send; closeSheet(); sendInvoiceTo(id, k); });
+    b.addEventListener('click', ()=>{ const k = b.dataset.send; closeSheet(); saveForUpload(id, k); });
   });
   sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
   const cam = sheet.querySelector('#f-cam'), fil = sheet.querySelector('#f-file');

@@ -742,6 +742,10 @@ async function moveInvoice(id, newStatus){
   inv.history = inv.history || [];
   inv.history.push({ status:newStatus, at: inv.updatedAt, label: colByKey[newStatus].title });
   await dbPut(inv); await loadAll();
+  /* Mitscrollen: sonst verschwindet die Karte am Handy kommentarlos
+     in eine Spalte, die gerade gar nicht sichtbar ist. */
+  const idx = COLUMNS.findIndex(c=> c.key === newStatus);
+  if(idx >= 0) scrollToCol(idx);
   toast('Verschoben nach: ' + colByKey[newStatus].short);
 }
 async function deleteInvoice(id){
@@ -1009,15 +1013,19 @@ if('serviceWorker' in navigator){
   window.addEventListener('load', async ()=>{
     try{
       const reg = await navigator.serviceWorker.register('./sw.js');
-      if(navigator.serviceWorker.controller){
-        reg.addEventListener('updatefound', ()=>{
-          const nw = reg.installing;
-          if(!nw) return;
-          nw.addEventListener('statechange', ()=>{
-            if(nw.state === 'installed') document.getElementById('updatebar').classList.add('show');
-          });
+      const showUpdate = ()=> document.getElementById('updatebar').classList.add('show');
+
+      /* Zwei Faelle, beide noetig: der neue Worker kann schon fertig
+         installiert warten, bevor dieser Code laeuft (dann feuert
+         'updatefound' nie mehr), oder er installiert erst danach. */
+      if(reg.waiting && navigator.serviceWorker.controller) showUpdate();
+      reg.addEventListener('updatefound', ()=>{
+        const nw = reg.installing;
+        if(!nw) return;
+        nw.addEventListener('statechange', ()=>{
+          if(nw.state === 'installed' && navigator.serviceWorker.controller) showUpdate();
         });
-      }
+      });
       document.addEventListener('visibilitychange', ()=>{
         if(document.visibilityState === 'visible') reg.update().catch(()=>{});
       });

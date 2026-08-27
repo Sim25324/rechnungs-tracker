@@ -6,7 +6,7 @@
    Ohne neue VERSION bleibt der alte Cache aktiv und Geraete bekommen
    das Update nicht zu sehen. */
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL   = 'rt-shell-'   + VERSION;   // App-Huelle, bei Update ersetzt
 const RUNTIME = 'rt-runtime-' + VERSION;   // grosse Libs, lazy gecached
 

@@ -1,4 +1,4 @@
-# Rechnungs-Tracker – Wahlarzt & Apotheke
+# Erstattungslotse – Wahlarzt & PKV
 
 Offline-PWA zum Erfassen und Nachverfolgen von Wahlarzt- und Apothekenrechnungen
 inklusive Kostenerstattung. OCR (Tesseract, deutsches Sprachmodell) und

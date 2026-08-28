@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Rechnungs-Tracker – Wahlarzt &amp; Apotheke</title>
+<title>Erstattungslotse – Wahlarzt &amp; PKV</title>
 
 <!-- PWA -->
 <link rel="manifest" href="./manifest.json">
@@ -11,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Rechnungen">
+<meta name="apple-mobile-web-app-title" content="Erstattungslotse">
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
 <style>
@@ -731,7 +731,7 @@ body.printing #printarea{ display:block; }
 <body>
 
 <header class="topbar">
-  <h1>Rechnungs-Tracker</h1>
+  <h1>Erstattungslotse</h1>
   <span class="saved-indicator" id="savedIndicator"></span>
 </header>
 
@@ -2191,7 +2191,7 @@ function renderGreeting(){
   const h = new Date().getHours();
   const gruss = h < 11 ? 'Guten Morgen' : h < 18 ? 'Guten Tag' : 'Guten Abend';
   const icon  = h < 11 ? '☀️' : h < 18 ? '🌤️' : '🌙';
-  el.innerHTML = `<div class="hi">${gruss} ${icon}</div><h1>Rechnungs<b>Tracker</b></h1>`;
+  el.innerHTML = `<div class="hi">${gruss} ${icon}</div><h1>Erstattungs<b>lotse</b></h1>`;
 }
 
 /* Was aktuell bei der privaten Versicherung eingereicht ist und noch
@@ -3807,7 +3807,7 @@ function openPolicySheet(){
 function drucke(html, titel){
   const ziel = document.getElementById('printarea');
   ziel.innerHTML = `<h1 class="p-titel">${escapeHTML(titel)}</h1>` + html +
-    `<p class="p-fuss">Erstellt am ${fmtDateTime(new Date().toISOString())} · Rechnungs-Tracker</p>`;
+    `<p class="p-fuss">Erstellt am ${fmtDateTime(new Date().toISOString())} · Erstattungslotse</p>`;
   document.body.classList.add('printing');
   const aufraeumen = ()=>{
     document.body.classList.remove('printing');
@@ -4141,7 +4141,7 @@ function openMaklerSheet(){
         <tr><td>gesamt gezahlt</td><td>${fmtEUR(d.bilanz.gesamtP)}</td></tr>
         <tr><td>gesamt erstattet</td><td>${fmtEUR(d.bilanz.gesamtE)}</td></tr>
       </table>` : ''}
-      <p class="p-hinweis">Automatisch erstellt aus den Einträgen in Rechnungs-Tracker, keine Auskunft
+      <p class="p-hinweis">Automatisch erstellt aus den Einträgen in Erstattungslotse, keine Auskunft
         eines Versicherers. Verbindlich sind Polizze und Bescheide.</p>`,
       'Übersicht für den Makler');
   });

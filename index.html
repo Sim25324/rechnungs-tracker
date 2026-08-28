@@ -3234,7 +3234,14 @@ let policy = null;      // aktuell einzige Polizze
 let leistungen = [];    // Toepfe der Polizze
 let usage = [];         // Verbrauchseintraege
 
-async function loadDeckung(){
+/* Policy/Leistungen/Usage/Vertraege aus dem Store laden, ohne eine
+   bestimmte Ansicht zu rendern. Wird sowohl beim App-Start gebraucht
+   (Uebersicht kennt sonst weder Polizze noch Vertraege, weil sie erst
+   beim Betreten von Deckung/Vertraege/Chancen geladen wurden – die
+   "Chance laeuft bald ab"-Karte und das Mehr-Abzeichen blieben dadurch
+   nach jedem Neustart leer, bis man zufaellig einen dieser Tabs oeffnet)
+   als auch von den einzelnen loadX()-Funktionen selbst. */
+async function loadPolicyState(){
   const pols = await stAll('policies');
   /* Der Store haelt jetzt alle Sparten – fuer die Deckung zaehlt die
      Krankenversicherung. Altbestand ohne art gilt als solche. */
@@ -3242,6 +3249,9 @@ async function loadDeckung(){
   leistungen = policy ? (policy.leistungen || []) : [];
   usage      = await stAll('usage');
   vertraege  = pols;
+}
+async function loadDeckung(){
+  await loadPolicyState();
   renderDeckung();
   updateChancenZaehler();
 }
@@ -3317,10 +3327,14 @@ function renderDeckung(){
 function bilanzBlock(){
   const praemien = (policy && policy.praemien) || [];
   if(!praemien.length){
+    /* Die Erstattungsquote haengt nicht von erfassten Praemien ab –
+       sie darf hier nicht verloren gehen, nur weil noch keine Praemie
+       eingetragen ist. */
     return `<div class="leer klein" style="margin-bottom:12px">
       <p style="margin-bottom:12px">Trage deine Prämie ein, um zu sehen, was du über die Laufzeit
          gezahlt hast – und wie sich das zu den Erstattungen verhält.</p>
-      <button class="primary" id="praemBtn">💶 Prämie erfassen</button></div>`;
+      <button class="primary" id="praemBtn">💶 Prämie erfassen</button></div>
+      ${quotenBlock()}`;
   }
   const jahr    = new Date().getFullYear();
   const startJ  = Number(praemien.slice().sort((a,b)=> a.ab.localeCompare(b.ab))[0].ab.slice(0,4));
@@ -3784,7 +3798,10 @@ function openPolicySheet(){
       <input type="file" id="pFile" accept="application/pdf,image/*" hidden>
       ${(p.docs||[]).length ? `<p class="hint">${p.docs.length} Datei(en) hinterlegt.</p>` : ''}
     </div>
-    <div class="sheet-foot"><button class="primary grow" id="pSave">Speichern</button></div>`);
+    <div class="sheet-foot">
+      ${policy ? '<button class="danger" id="pDel">Löschen</button>' : ''}
+      <button class="primary grow" id="pSave">Speichern</button>
+    </div>`);
   sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
   const fi = sheet.querySelector('#pFile');
   sheet.querySelector('#pUp').addEventListener('click', ()=> fi.click());
@@ -3795,6 +3812,14 @@ function openPolicySheet(){
     p.beginn      = sheet.querySelector('#p-beginn').value;
     await stPut('policies', p);
     closeSheet(); await loadDeckung(); toast('Gespeichert');
+  });
+  const del = sheet.querySelector('#pDel');
+  if(del) del.addEventListener('click', async ()=>{
+    if(!confirm('Diese Polizze samt allen Leistungen, Verbrauchseinträgen und Prämien löschen?')) return;
+    for(const l of (policy.leistungen||[]))
+      for(const u of usage.filter(u=> u.leistungId === l.id)) await stDel('usage', u.id);
+    await stDel('policies', policy.id);
+    closeSheet(); await loadDeckung(); await loadVertraege(); toast('Gelöscht');
   });
 }
 
@@ -4274,14 +4299,9 @@ function openVertragSheet(id){
    CHANCEN-ANSICHT
    ================================================================== */
 async function loadChancen(){
-  if(!policy && !vertraege.length){
-    const pols = await stAll('policies');
-    policy     = pols.find(p=> (p.art||'kranken') === 'kranken') || null;
-    leistungen = policy ? (policy.leistungen||[]) : [];
-    usage      = await stAll('usage');
-    vertraege  = pols;
-  }
+  if(!policy && !vertraege.length) await loadPolicyState();
   renderChancen();
+  updateChancenZaehler();
 }
 
 function renderChancen(){
@@ -4447,8 +4467,12 @@ function setView(v){
 document.querySelectorAll('.mainbtn').forEach(b=>
   b.addEventListener('click', ()=> setView(b.dataset.view)));
 
-/* ---------- Start ---------- */
-openDB().then(loadAll).then(()=> setView(currentView)).then(handleSharedFiles);
+/* ---------- Start ----------
+   Policy/Vertraege VOR dem ersten sichtbaren Rendern laden – sonst
+   fehlen auf der Uebersicht (Standard-Landing-Ansicht) die Chancen-
+   Hinweise und das Mehr-Abzeichen, weil beide bisher nur beim Besuch
+   von Deckung/Vertraege/Chancen befuellt wurden. */
+openDB().then(loadAll).then(loadPolicyState).then(()=>{ render(); setView(currentView); }).then(handleSharedFiles);
 
 /* ---------- Service Worker inklusive Update-Hinweis ----------
    Laeuft nur unter https:// oder localhost. Meldet sich ein neuer

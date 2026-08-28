@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Erstattungslotse – Wahlarzt & PKV",
-  "short_name": "Erstattungslotse",
-  "description": "Lokaler Lotse durch Wahlarzt-, Apotheken- und Privatversicherungs-Erstattungen mit OCR. Alle Daten bleiben auf dem Gerät.",
+  "name": "Privatly – Wahlarzt & PKV",
+  "short_name": "Privatly",
+  "description": "Lokaler Tracker für Wahlarzt-, Apotheken- und Privatversicherungs-Erstattungen mit OCR. Alle Daten bleiben auf dem Gerät.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

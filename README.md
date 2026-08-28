@@ -1,4 +1,4 @@
-# Erstattungslotse – Wahlarzt & PKV
+# Privatly – Wahlarzt & PKV
 
 Offline-PWA zum Erfassen und Nachverfolgen von Wahlarzt- und Apothekenrechnungen
 inklusive Kostenerstattung. OCR (Tesseract, deutsches Sprachmodell) und

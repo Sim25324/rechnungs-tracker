@@ -431,6 +431,12 @@ button:disabled{ opacity:.5; }
 .vorschlag b{ display:block; font-size:14px; margin-bottom:2px; }
 .vlimit{ display:block; font-size:12.5px; color:var(--blue); font-weight:700; }
 .vquelle{ display:block; font-size:11px; color:#94a3b8; margin-top:4px; font-style:italic; }
+.kopfgrid{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+.kopfgrid label{ display:block; font-size:11.5px; font-weight:700; color:var(--sub); }
+.kopfgrid input, .kopfgrid select{
+  width:100%; margin-top:4px; padding:9px 10px; border:1px solid #cbd5e1;
+  border-radius:8px; font-family:inherit; font-size:15px; min-height:40px; background:#fff; color:var(--ink);
+}
 
 .vliste{ list-style:none; margin:10px 0 0; padding:0; }
 .vliste li{
@@ -880,27 +886,167 @@ const ZEITRAEUME = {
   einmalig:{ label:'einmalig',              monate:0 },
 };
 
-/* Betragsmuster in Polizzentexten. Bewusst konservativ – lieber
-   nichts vorschlagen als einen falschen Betrag als Wahrheit setzen. */
-function findeLimitImText(zeile){
-  const t = zeile.replace(/\s+/g,' ');
-  let m = t.match(/(?:bis zu|max(?:imal)?\.?|höchstens|Höchstbetrag(?:\s*von)?)[^\d%]{0,15}(?:EUR|€)\s*([\d.]+(?:,\d{1,2})?)/i)
-       || t.match(/(?:EUR|€)\s*([\d.]+(?:,\d{1,2})?)[,.\-\s]*(?:pro|je|p\.a\.|jährlich|im\s+Jahr|alle\s+\d+\s*Jahre|innerhalb)/i);
+/* ==================================================================
+   Betrags- und Limitmuster in Polizzentexten.
+   Polizzen sind fast immer Tabellen: "Impfungen .......... 150,00".
+   Deshalb werden Fuellzeichen entfernt und auch der blanke Betrag am
+   Zeilenende akzeptiert – aber nur, wenn die Zeile ein Leistungswort
+   enthaelt, sonst faengt man Seitenzahlen und Paragraphen ein.
+   ================================================================== */
+function zahlAus(s){
+  const v = parseFloat(String(s).replace(/\s/g,'').replace(/\.(?=\d{3}\b)/g,'').replace(',','.'));
+  return isNaN(v) ? null : v;
+}
+function findeLimitImText(zeile, zeileHatLeistungswort){
+  /* Punktfuehrungen, Unterstriche und Mehrfachleerzeichen raus */
+  const t = String(zeile||'').replace(/[.․]{2,}|_{2,}/g,' ').replace(/\s+/g,' ').trim();
+
+  /* 1. Stueckzahl zuerst: "10 Sitzungen" ist eindeutig und wuerde sonst
+        von einem Betragsmuster als "10 EUR" eingesammelt. */
+  let m = t.match(/(\d{1,3})\s*(?:mal\b|x\b|Sitzungen|Behandlungen|Einheiten|Stück|Konsultationen|Therapieeinheiten)/i);
   if(m){
-    const v = parseFloat(m[1].replace(/\./g,'').replace(',','.'));
-    if(!isNaN(v) && v > 0 && v < 1000000) return { typ:'betrag', wert:v };
+    const v = parseInt(m[1],10);
+    if(v > 0 && v < 500) return { typ:'anzahl', wert:v };
   }
-  m = t.match(/(\d{1,3})\s*%/);
+
+  /* 2. Betrag mit Kontextwort. Waehrungszeichen ODER Nachkommastellen
+        sind Pflicht – sonst wird aus "höchstens 3 Monate" ein Limit.
+        Steht VOR der Prozentpruefung: ein Euro-Betrag ist das staerkere
+        Signal, der Prozentsatz daneben ist meist der Selbstbehalt. */
+  m = t.match(/(?:bis zu|max(?:imal)?\.?|höchstens|Höchstbetrag(?:\s*von)?|begrenzt mit|Limit(?:\s*von)?)[^\d%]{0,18}(?:(?:EUR|€)\s*(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?)|(\d{1,3}(?:[.\s]\d{3})*,\d{2}))/i)
+   || t.match(/(?:EUR|€)\s*(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?)\s*(?:,-{1,2}|-{1,2})?\s*(?:pro|je|p\.a\.|jährlich|im\s+Jahr|alle\s+\d+\s*Jahre|innerhalb)/i)
+   || t.match(/(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?)\s*(?:EUR|€)\s*(?:pro|je|p\.a\.|jährlich|alle\s+\d+\s*Jahre)/i);
+  if(m){
+    const v = zahlAus(m[1] || m[2]);
+    if(v != null && v > 0 && v < 1000000) return { typ:'betrag', wert:v };
+  }
+
+  /* 3. Prozentsatz – Selbstbehalts- und Wartezeitklauseln vorher
+        entfernen, sonst wird der Selbstbehalt zum Deckungsgrad. */
+  const ohneSB = t.replace(/Selbstbehalt[^,;.]{0,30}/ig,' ').replace(/Wartezeit[^,;.]{0,30}/ig,' ');
+  m = ohneSB.match(/(\d{1,3})\s*(?:,\d)?\s*%/);
   if(m){
     const v = parseInt(m[1],10);
     if(v > 0 && v <= 100) return { typ:'prozent', wert:v };
   }
-  m = t.match(/(\d{1,2})\s*(?:mal|x|Sitzungen|Behandlungen|Stück)/i);
+
+  /* 4. Nackter Betrag mit Waehrung irgendwo in der Zeile */
+  m = t.match(/(?:EUR|€)\s*(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?)/i)
+   || t.match(/(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?)\s*(?:EUR|€)/i);
   if(m){
-    const v = parseInt(m[1],10);
-    if(v > 0 && v < 200) return { typ:'anzahl', wert:v };
+    const v = zahlAus(m[1]);
+    if(v != null && v > 0 && v < 1000000) return { typ:'betrag', wert:v };
+  }
+
+  /* 5. Tabellenfall: Betrag am Zeilenende ohne Waehrungszeichen.
+        Nur zulassen, wenn die Zeile selbst die Leistung benennt. */
+  if(zeileHatLeistungswort){
+    m = t.match(/(\d{1,3}(?:[.\s]\d{3})*,\d{2}|\d{2,6})\s*(?:,-{1,2}|-{1,2})?\s*$/);
+    if(m){
+      const v = zahlAus(m[1]);
+      if(v != null && v >= 20 && v < 1000000) return { typ:'betrag', wert:v };
+    }
   }
   return null;
+}
+
+/* Selbstbehalt und Wartezeit als Zusatzinfo zum Topf */
+function findeSelbstbehalt(t){
+  const m = String(t).match(/Selbstbehalt[^\d%]{0,20}(?:(?:EUR|€)\s*(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?)|(\d{1,3})\s*%)/i);
+  if(!m) return '';
+  return m[1] ? 'Selbstbehalt ' + zahlAus(m[1]) + ' EUR' : 'Selbstbehalt ' + m[2] + ' %';
+}
+function findeWartezeit(t){
+  const m = String(t).match(/Wartezeit[^\d]{0,20}(\d{1,2})\s*(Monate?|Jahre?|Wochen?)/i);
+  return m ? 'Wartezeit ' + m[1] + ' ' + m[2] : '';
+}
+
+/* ==================================================================
+   Kopfdaten der Polizze: Versicherer, Beginn, Hauptfaelligkeit,
+   Polizzennummer und – neu – die Praemie samt Zahlungsweise.
+   ================================================================== */
+const VERSICHERER_RE = /\b(Generali|UNIQA|Merkur|Wiener\s+St[äa]dtische|Allianz|Donau\s+Versicherung|Helvetia|Zurich|Muki|Grazer\s+Wechselseitige|GRAWE|Ergo|Nürnberger|Wüstenrot|Sparkassen\s+Versicherung)\b/i;
+
+function findeDatumNach(text, labels, nurTagMonat){
+  for(const lab of labels){
+    const re = new RegExp(lab + '[^\\d]{0,30}(\\d{1,2})\\s*[.\\/-]\\s*(\\d{1,2})' +
+                          (nurTagMonat ? '' : '\\s*[.\\/-]\\s*(\\d{2,4})'), 'i');
+    const m = String(text).match(re);
+    if(!m) continue;
+    if(nurTagMonat) return { tag:Number(m[1]), monat:Number(m[2]) };
+    const iso = alsPolizzenDatum(m[1], m[2], m[3]);
+    if(iso) return iso;
+  }
+  return null;
+}
+/* Eigene Datumspruefung: anders als bei Rechnungen duerfen Polizzen
+   weit in der Vergangenheit beginnen und in der Zukunft liegen. */
+function alsPolizzenDatum(d, m, y){
+  if(String(y).length === 2) y = (Number(y) > 70 ? '19' : '20') + y;
+  const dd = Number(d), mm = Number(m), yy = Number(y);
+  if(mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+  if(yy < 1950 || yy > new Date().getFullYear() + 30) return null;
+  return `${yy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+}
+
+function findePraemie(text, zeilen){
+  const kandidaten = [];
+  const zeilenArr = zeilen && zeilen.length ? zeilen : String(text||'').split(/\r?\n/);
+
+  /* Globale Zahlungsweise als Rueckfallebene */
+  let globalInt = null;
+  const zw = String(text).match(/(?:Zahlungsweise|Zahlungsart|Prämienzahlung|zahlbar)\s*:?\s*(monatlich|vierteljährlich|halbjährlich|jährlich)/i);
+  if(zw) globalInt = { 'monatlich':'monatlich', 'vierteljährlich':'quartal',
+                       'halbjährlich':'halbjahr', 'jährlich':'jahr' }[zw[1].toLowerCase()];
+
+  zeilenArr.forEach(z=>{
+    const t = String(z||'').replace(/[.․]{2,}|_{2,}/g,' ').replace(/\s+/g,' ');
+    const l = t.toLowerCase();
+    if(!/prämie|praemie|beitrag/.test(l)) return;
+    /* Was keine zu zahlende Praemie ist */
+    if(/rückerstattung|rückvergütung|gewinnbeteiligung|beitragsrückerstattung|befreiung/.test(l)) return;
+
+    let intervall = null, score = 0;
+    if(/monatsprämie|monatlich|pro monat|je monat|p\.\s?m\./.test(l)){ intervall = 'monatlich'; score += 6; }
+    else if(/vierteljähr|quartal/.test(l))                          { intervall = 'quartal';   score += 6; }
+    else if(/halbjähr/.test(l))                                     { intervall = 'halbjahr';  score += 6; }
+    else if(/jahresprämie|jährlich|pro jahr|p\.\s?a\./.test(l))     { intervall = 'jahr';      score += 6; }
+
+    if(/gesamtprämie|zu zahlen|zahlbetrag|folgeprämie|prämie inkl|inkl\. versicherungssteuer/.test(l)) score += 5;
+    if(/^prämie\b|prämie\s*:/.test(l)) score += 3;
+
+    const m = t.match(/(?:EUR|€)\s*(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?)/i)
+           || t.match(/(\d{1,3}(?:[.\s]\d{3})*,\d{2})\s*(?:EUR|€)?/);
+    if(!m) return;
+    const betrag = zahlAus(m[1]);
+    if(betrag == null || betrag <= 0 || betrag > 100000) return;
+
+    kandidaten.push({ betrag, intervall: intervall || globalInt || 'monatlich',
+                      score, sicher: score >= 6 || !!globalInt, quelle: t.slice(0,120) });
+  });
+
+  if(!kandidaten.length) return null;
+  const max = Math.max(...kandidaten.map(k=> k.score));
+  /* Bei Gleichstand die kleinste Zahl: die Gesamtjahressumme steht oft
+     daneben, gemeint ist aber der wiederkehrende Zahlbetrag. */
+  return kandidaten.filter(k=> k.score === max).sort((a,b)=> a.betrag - b.betrag)[0];
+}
+
+function polizzenKopf(text){
+  const vers = String(text).match(VERSICHERER_RE);
+  const beginn = findeDatumNach(text, [
+    'Versicherungsbeginn','Vertragsbeginn','Beginn\\s+der\\s+Versicherung',
+    'Versicherungsdauer\\s*(?:von|ab)','Beginn'
+  ]);
+  const hf = findeDatumNach(text, ['Hauptfälligkeit','Hauptfälligkeitstag','jährlich\\s+am'], true);
+  const nr = String(text).match(/(?:Polizzen-?\s?(?:nummer|nr)\.?|Versicherungsschein-?\s?Nr\.?|Vertrags-?\s?(?:nummer|nr)\.?)\s*:?\s*([A-Za-z0-9][A-Za-z0-9\/\-.]{3,24})/i);
+  return {
+    versicherer: vers ? vers[1].replace(/\s+/g,' ') : '',
+    beginn: beginn || '',
+    hauptfaelligkeit: hf ? `${new Date().getFullYear()}-${String(hf.monat).padStart(2,'0')}-${String(hf.tag).padStart(2,'0')}` : '',
+    polizzennr: nr ? nr[1].replace(/[.\-]$/,'') : '',
+    praemie: findePraemie(text, String(text).split(/\r?\n/)),
+  };
 }
 function findeZeitraum(zeile){
   const t = zeile.toLowerCase();
@@ -912,32 +1058,62 @@ function findeZeitraum(zeile){
 
 /* Polizzentext durchgehen und Leistungsvorschlaege bauen.
    Ergebnis sind VORSCHLAEGE – bestaetigt werden sie vom Nutzer. */
+/* Nennt diese Zeile eine ANDERE Leistung? Dann endet der Geltungs-
+   bereich des aktuellen Topfes dort – sonst zieht man sich den Betrag
+   des Nachbarn und dessen Selbstbehalt herein. */
+function anderesLeistungswort(zeile, ausserKey){
+  const l = String(zeile||'').toLowerCase();
+  return LEISTUNGS_KATALOG.some(k=> k.key !== ausserKey && k.such.length && k.such.some(s=> l.includes(s)));
+}
+const OHNE_LIMIT_RE = /ohne\s+(?:limit|begrenzung|höchstbetrag)|unbegrenzt|in\s+voller\s+höhe|zur\s+gänze/i;
+
 function analysierePolizze(text){
-  const zeilen = String(text||'').split(/\r?\n/).map(z=> z.trim()).filter(z=> z.length > 3);
-  const gefunden = [];
-  const gesehen  = new Set();
+  const zeilen = String(text||'').split(/\r?\n/).map(z=> z.trim()).filter(z=> z.length > 2);
+  const treffer = new Map();
 
   zeilen.forEach((z, i)=>{
     const lower = z.toLowerCase();
     for(const kat of LEISTUNGS_KATALOG){
-      if(!kat.such.length || gesehen.has(kat.key)) continue;
+      if(!kat.such.length) continue;
       if(!kat.such.some(s=> lower.includes(s))) continue;
-      /* Limit in dieser oder den beiden folgenden Zeilen suchen */
-      const kontext = [z, zeilen[i+1]||'', zeilen[i+2]||''].join(' ');
-      const limit   = findeLimitImText(kontext);
-      gefunden.push({
+
+      /* Geltungsbereich: die Zeile selbst, danach hoechstens zwei
+         Folgezeilen – und nur solange dort keine andere Leistung
+         beginnt. Jede Zeile wird EINZELN geprueft, nicht als Block. */
+      const bereich = [{ t:z, eigen:true, guete:3 }];
+      for(let k = 1; k <= 2; k++){
+        const n = zeilen[i+k];
+        if(!n || anderesLeistungswort(n, kat.key)) break;
+        bereich.push({ t:n, eigen:false, guete:3-k });
+      }
+
+      let limit = null, guete = 0, fundZeile = z;
+      const explizitOffen = bereich.some(b=> OHNE_LIMIT_RE.test(b.t));
+      if(!explizitOffen){
+        for(const b of bereich){
+          const l = findeLimitImText(b.t, b.eigen);
+          if(l){ limit = l; guete = b.guete; fundZeile = b.t; break; }
+        }
+      }
+
+      /* Zeitraum und Zusaetze nur aus dem eigenen Bereich lesen. */
+      const eigenerText = bereich.map(b=> b.t).join(' ');
+      const kandidat = {
         key: kat.key, name: kat.name, icon: kat.icon,
         limitTyp: limit ? limit.typ : 'unbegrenzt',
         limit:    limit ? limit.wert : 0,
-        zeitraum: findeZeitraum(kontext),
-        quelle:   z.slice(0,140),
-        sicher:   !!limit,
-      });
-      gesehen.add(kat.key);
+        zeitraum: findeZeitraum(fundZeile + ' ' + z),
+        notizZusatz: [findeSelbstbehalt(eigenerText), findeWartezeit(eigenerText)].filter(Boolean).join(' · '),
+        quelle:   (z + (fundZeile !== z ? ' | ' + fundZeile : '')).replace(/\s+/g,' ').slice(0,140),
+        sicher:   !!limit || explizitOffen,
+        guete:    limit ? guete : (explizitOffen ? 1 : 0),
+      };
+      const alt = treffer.get(kat.key);
+      if(!alt || kandidat.guete > alt.guete) treffer.set(kat.key, kandidat);
       break;
     }
   });
-  return gefunden;
+  return [...treffer.values()];
 }
 
 /* ==================================================================
@@ -3088,13 +3264,11 @@ async function polizzeEinlesen(file){
   }catch(err){ console.error('Polizze nicht lesbar:', err); }
 
   const vorschlaege = analysierePolizze(text);
-  const versicherer = (text.match(/\b(Generali|UNIQA|Merkur|Wiener St[äa]dtische|Allianz|Donau|Helvetia|Zurich|Muki)\b/i)||[])[1] || '';
-  const beginn      = (text.match(/(?:Versicherungsbeginn|Beginn|Vertragsbeginn)[^\d]{0,20}(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/i));
-  const beginnISO   = beginn ? `${beginn[3]}-${beginn[2].padStart(2,'0')}-${beginn[1].padStart(2,'0')}` : '';
-
-  const dataURL = await fileToDataURL(file);
-  zeigePolizzeVorschlaege(vorschlaege, { versicherer, beginn: beginnISO,
-    doc:{ id:uid(), kind:'sonstiges', name:file.name, type:file.type, data:dataURL, addedAt:new Date().toISOString() } });
+  const kopf        = polizzenKopf(text);
+  const dataURL     = await fileToDataURL(file);
+  zeigePolizzeVorschlaege(vorschlaege, Object.assign(kopf, {
+    doc:{ id:uid(), kind:'sonstiges', name:file.name, type:file.type, data:dataURL, addedAt:new Date().toISOString() },
+  }));
 }
 
 function zeigePolizzeVorschlaege(vorschlaege, meta){
@@ -3107,8 +3281,20 @@ function zeigePolizzeVorschlaege(vorschlaege, meta){
         <span>Das ist eine Lesehilfe, keine Vertragsauslegung. Prüfe jeden Eintrag gegen deine
           Polizze und korrigiere ihn – die App rechnet später mit diesen Werten.</span>
       </div>
-      ${meta.versicherer ? `<p class="hint">Versicherer erkannt: <b>${escapeHTML(meta.versicherer)}</b>${
-        meta.beginn ? ' · Beginn ' + fmtDate(meta.beginn) : ''}</p>` : ''}
+      <div class="grouplabel">Vertragsdaten</div>
+      <div class="kopfgrid">
+        <label>Versicherer<input type="text" id="k-vers" value="${escapeHTML(meta.versicherer||'')}" placeholder="nicht erkannt"></label>
+        <label>Polizzennummer<input type="text" id="k-nr" value="${escapeHTML(meta.polizzennr||'')}" placeholder="nicht erkannt"></label>
+        <label>Versicherungsbeginn<input type="date" id="k-beginn" value="${meta.beginn||''}"></label>
+        <label>Hauptfälligkeit<input type="date" id="k-hf" value="${meta.hauptfaelligkeit||''}"></label>
+        <label>Prämie (€)<input type="number" step="0.01" inputmode="decimal" id="k-pbetrag"
+          value="${meta.praemie ? meta.praemie.betrag : ''}" placeholder="nicht erkannt"></label>
+        <label>Zahlungsweise<select id="k-pint">${Object.keys(INTERVALLE).map(k=>
+          `<option value="${k}" ${meta.praemie && meta.praemie.intervall===k ? 'selected':''}>${escapeHTML(INTERVALLE[k].label)}</option>`).join('')}</select></label>
+      </div>
+      ${meta.praemie ? `<p class="hint">Prämie gelesen aus: „${escapeHTML(meta.praemie.quelle)}“${
+        meta.praemie.sicher ? '' : ' – unsicher, bitte prüfen'}</p>`
+        : '<p class="hint">Keine Prämie im Text gefunden. Trag sie hier ein, dann rechnet die Bilanz von Anfang an mit.</p>'}
       ${vorschlaege.length ? `
         <div class="grouplabel">Übernehmen</div>
         ${vorschlaege.map((v,i)=>`
@@ -3133,16 +3319,33 @@ function zeigePolizzeVorschlaege(vorschlaege, meta){
   sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
   const speichern = async (auswahl)=>{
     const p = policy || { id: uid(), art:'kranken', versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[], praemien:[] };
-    if(meta.versicherer && !p.versicherer) p.versicherer = meta.versicherer;
-    if(meta.beginn && !p.beginn)           p.beginn = meta.beginn;
+
+    /* Kopfdaten aus den Feldern uebernehmen – der Nutzer hat sie
+       gesehen und ggf. korrigiert, also gelten sie. */
+    const g = sel => { const el = sheet.querySelector(sel); return el ? el.value.trim() : ''; };
+    if(g('#k-vers'))   p.versicherer      = g('#k-vers');
+    if(g('#k-nr'))     p.polizzennr       = g('#k-nr');
+    if(g('#k-beginn')) p.beginn           = g('#k-beginn');
+    if(g('#k-hf'))     p.hauptfaelligkeit = g('#k-hf');
+
+    /* Praemie als ersten Eintrag der Zeitreihe anlegen, ab Vertragsbeginn.
+       Nur wenn es noch keine gibt – sonst wuerde ein erneutes Einlesen
+       die gepflegte Historie mit Dubletten zumuellen. */
+    const pb = Number(g('#k-pbetrag'));
+    if(pb > 0 && !(p.praemien||[]).length){
+      p.praemien = [{ id: uid(), ab: p.beginn || isoLocal(new Date()),
+                      betrag: pb, intervall: g('#k-pint') || 'monatlich' }];
+    }
+
     if(meta.doc)  p.docs = (p.docs||[]).concat([meta.doc]);
     p.leistungen = (p.leistungen||[]).concat(auswahl.map(v=>({
       id: uid(), key:v.key, name:v.name, icon:v.icon,
-      limitTyp:v.limitTyp, limit:v.limit, zeitraum:v.zeitraum, notiz:v.quelle||''
+      limitTyp:v.limitTyp, limit:v.limit, zeitraum:v.zeitraum,
+      notiz: [v.notizZusatz, v.quelle].filter(Boolean).join(' — ')
     })));
     await stPut('policies', p);
-    closeSheet(); await loadDeckung();
-    toast(auswahl.length + ' Leistung(en) übernommen');
+    closeSheet(); await loadDeckung(); await loadVertraege();
+    toast(auswahl.length ? auswahl.length + ' Leistung(en) übernommen' : 'Vertragsdaten gespeichert');
   };
   sheet.querySelector('#vOk').addEventListener('click', ()=>{
     const gewaehlt = [...sheet.querySelectorAll('[data-v]')].filter(c=> c.checked)

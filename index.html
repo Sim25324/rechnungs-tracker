@@ -516,6 +516,57 @@ button:disabled{ opacity:.5; }
 .simtab .plus{ color:#15803d; font-weight:700; }
 .simtab .minus{ color:#b91c1c; font-weight:700; }
 
+/* Chancen */
+#view-chancen{ padding:10px calc(12px + var(--sar)) 96px calc(12px + var(--sal)); }
+.chintro{
+  background:#0f172a; color:#e2e8f0; border-radius:12px; padding:14px 15px;
+  font-size:13px; line-height:1.55;
+}
+.chintro b{ display:block; color:#fff; font-size:14.5px; margin-bottom:5px; }
+.anlassgrid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.anlass{
+  flex-direction:column; gap:5px; padding:13px 9px; min-height:78px;
+  font-size:12.5px; font-weight:700; line-height:1.3; text-align:center;
+}
+.anlass .aic{ font-size:22px; }
+.hinweis{
+  display:flex; align-items:flex-start; gap:10px; background:#fff;
+  border:1px solid var(--line); border-left:4px solid #94a3b8;
+  border-radius:10px; padding:11px 12px; margin-bottom:8px; cursor:pointer;
+}
+.hinweis.hoch{ border-left-color:#dc2626; background:#fef2f2; }
+.hinweis.mittel{ border-left-color:#f59e0b; background:#fffbeb; }
+.hinweis.niedrig{ border-left-color:#64748b; }
+.hic{ font-size:18px; flex:none; }
+.hmain{ flex:1; min-width:0; }
+.hmain b{ display:block; font-size:13.5px; margin-bottom:3px; }
+.hmain span{ font-size:12.5px; color:var(--sub); line-height:1.5; }
+.hgo{ flex:none; color:#94a3b8; font-size:20px; font-weight:700; }
+.chtopf{
+  display:flex; align-items:center; gap:10px; background:#f8fafc;
+  border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:7px;
+}
+.eilig{
+  background:#fef2f2; border:1px solid #fecaca; color:#991b1b; border-radius:10px;
+  padding:11px 13px; font-size:13px; line-height:1.5; margin-bottom:6px;
+}
+.grouplabel .cnt{
+  background:#0f172a; color:#fff; border-radius:20px; padding:1px 8px; font-size:11px;
+}
+.navcnt{
+  margin-left:5px; background:#64748b; color:#fff; border-radius:20px;
+  padding:1px 6px; font-size:10.5px; font-weight:800;
+}
+.navcnt.hoch{ background:#dc2626; }
+.mainbtn[aria-selected="true"] .navcnt{ background:rgba(255,255,255,.3); }
+.chbanner{
+  display:flex; align-items:center; gap:10px; width:calc(100% - 24px);
+  margin:8px calc(12px + var(--sar)) 0 calc(12px + var(--sal));
+  background:#fef2f2; border:1px solid #fecaca; color:#991b1b;
+  border-radius:10px; padding:11px 13px; font-size:13px; font-weight:700; text-align:left;
+}
+.chbanner span:first-child{ flex:1; }
+
 /* Druckbereich – im Normalbetrieb unsichtbar */
 #printarea{ display:none; }
 body.printing #printarea{ display:block; }
@@ -617,9 +668,11 @@ body.printing #printarea{ display:block; }
   <button class="mainbtn" data-view="rechnungen" role="tab" aria-selected="true">🧾 Rechnungen</button>
   <button class="mainbtn" data-view="deckung"    role="tab" aria-selected="false">🛡 Deckung</button>
   <button class="mainbtn" data-view="vertraege"  role="tab" aria-selected="false">📄 Verträge</button>
+  <button class="mainbtn" data-view="chancen"    role="tab" aria-selected="false">💡 Chancen</button>
 </nav>
 
 <section id="view-rechnungen">
+  <button class="chbanner" id="chancenBanner" hidden></button>
   <div class="stats" id="stats"></div>
   <div class="tabs" id="tabs" role="tablist"></div>
   <div class="board" id="board"></div>
@@ -631,6 +684,10 @@ body.printing #printarea{ display:block; }
 
 <section id="view-vertraege" hidden>
   <div id="vertraege"></div>
+</section>
+
+<section id="view-chancen" hidden>
+  <div id="chancen"></div>
 </section>
 
 <div id="printarea" aria-hidden="true"></div>
@@ -903,6 +960,10 @@ const monatsBetrag = e => (Number(e.betrag)||0) * (INTERVALLE[e.intervall]||INTE
    'YYYY-MM-DD' parst als UTC-Mitternacht, ein daraus gebautes lokales
    Datum liegt in Mitteleuropa eine Stunde davor – dadurch fiel bei der
    ersten Fassung jeweils der Startmonat aus der Summe. */
+/* Lokales Datum als 'YYYY-MM-DD'. NICHT toISOString() verwenden: das
+   rechnet nach UTC um und verschiebt in Mitteleuropa auf den Vortag. */
+const isoLocal = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')
+                    + '-' + String(d.getDate()).padStart(2,'0');
 const ymOf = iso => { const [y,m] = String(iso||'').split('-').map(Number);
                       return (y||0) * 12 + ((m||1) - 1); };
 function praemienSumme(pol, vonISO, bisISO){
@@ -924,7 +985,7 @@ function praemienSumme(pol, vonISO, bisISO){
 }
 const praemienImJahr = (pol, jahr) =>
   praemienSumme(pol, jahr+'-01-01', Math.min(jahr,new Date().getFullYear()) === new Date().getFullYear()
-    ? new Date().toISOString().slice(0,10) : jahr+'-12-31');
+    ? isoLocal(new Date()) : jahr+'-12-31');
 
 /* Was ist tatsaechlich zurueckgekommen – nicht was beantragt wurde. */
 const erstattetGesamt = inv => (Number(inv.erstattetOegk)||0) + (Number(inv.erstattetKv)||0);
@@ -960,12 +1021,219 @@ function fristStatus(inv){
   const monate = (inv.status === 'bezahlt' || inv.status === 'oegk_eingereicht')
     ? FRIST_OEGK_MONATE
     : ((policy && Number(policy.fristMonate)) || FRIST_OEGK_MONATE);
-  const ende = new Date(inv.date);
+  const [fy,fm,fd] = inv.date.split('-').map(Number);
+  const ende = new Date(fy, fm-1, fd, 12);
   ende.setMonth(ende.getMonth() + monate);
   const tage = Math.floor((ende - Date.now()) / 86400000);
   if(tage < 0)   return { stufe:'abgelaufen', tage, ende };
   if(tage <= 90) return { stufe:'knapp',      tage, ende };
   return null;
+}
+
+/* ==================================================================
+   MODUL: CHANCEN – Ansprüche, die sonst liegen bleiben
+
+   Leitgedanke: Der Versicherer weiss genau, welche Leistungen du nicht
+   abrufst. Du nicht. Dieses Modul dreht das um.
+
+   Bewusste Grenze: Die App sagt NICHT, welche Behandlung sinnvoll ist.
+   Das entscheidet ärztlich. Sie sagt nur, was laut deiner erfassten
+   Polizze gedeckt ist, was administrativ dazugehoert und welche
+   Fristen laufen. Alles andere waere Gesundheitsberatung, und die
+   gehoert nicht in eine Verwaltungs-App.
+   ================================================================== */
+const ANLAESSE = [
+  { key:'ruecken', label:'Rücken, Nacken oder Gelenke', icon:'🦴',
+    toepfe:['physio','alternativ','heilbehelfe','wahlarzt','medikamente'],
+    schritte:[
+      'Ärztliche Verordnung besorgen – ohne sie erstattet weder Kasse noch private Versicherung.',
+      'Vor Therapiebeginn klären, ob dein Tarif eine Bewilligung vorab verlangt. Nachträglich wird das selten geheilt.',
+      'Bei Heilbehelfen wie Einlagen oder Bandagen die Verordnung mit einreichen.',
+    ]},
+  { key:'unfall', label:'Sturz, Unfall oder Verletzung', icon:'🩹',
+    toepfe:['heilbehelfe','physio','transport','wahlarzt','ambulant'],
+    vertraege:['unfall','kfz','rechts'],
+    dringend:true,
+    schritte:[
+      'Zuerst die Unfallversicherung verständigen. Viele Polizzen verlangen die Meldung binnen weniger Tage – diese Frist ist der häufigste Grund, warum Ansprüche verfallen.',
+      'Hergang, Datum, Uhrzeit, Ort und Zeugen sofort notieren, solange die Erinnerung frisch ist.',
+      'Auch harmlos wirkende Verletzungen melden. Dauerfolgen zeigen sich manchmal erst Monate später, und dann zählt die frühe Meldung.',
+      'Jeden Arztbesuch und jede Therapie lückenlos dokumentieren.',
+      'War ein Fahrzeug oder ein Dritter beteiligt: auch Kfz- und Rechtsschutzversicherung prüfen.',
+    ]},
+  { key:'zahn', label:'Zahnbehandlung oder Zahnersatz', icon:'🦷',
+    toepfe:['zahnbehandlung','zahnersatz'],
+    schritte:[
+      'Vor größeren Arbeiten einen Heil- und Kostenplan verlangen und vorab bei der Versicherung einreichen.',
+      'Zahnersatz hat oft Mehrjahres-Limits und Wartezeiten – vorher den freien Rahmen prüfen.',
+    ]},
+  { key:'sehen', label:'Brille, Kontaktlinsen oder Hören', icon:'👓',
+    toepfe:['sehbehelfe'],
+    schritte:[
+      'Diese Töpfe laufen meist über mehrere Jahre. Prüf zuerst, ob der Rahmen wieder frei ist.',
+      'Verordnung oder Sehstärkennachweis mit dem Beleg einreichen.',
+    ]},
+  { key:'psyche', label:'Psychische Belastung', icon:'🧠',
+    toepfe:['psychotherapie','wahlarzt'],
+    schritte:[
+      'Viele Tarife decken eine begrenzte Zahl an Sitzungen pro Jahr und verlangen eine Bewilligung vorab.',
+      'Klären, ob nur klinisch-psychologische Diagnostik oder auch Psychotherapie gedeckt ist – das sind unterschiedliche Leistungen.',
+    ]},
+  { key:'vorsorge', label:'Vorsorge und Impfungen', icon:'💉',
+    toepfe:['vorsorge','impfungen'],
+    schritte:[
+      'Vorsorgetöpfe verfallen typischerweise am Ende des Versicherungsjahres ungenutzt.',
+      'Reise- und Auffrischungsimpfungen laufen oft über einen eigenen, kleinen Topf.',
+    ]},
+  { key:'spital', label:'Geplanter Spitalsaufenthalt oder OP', icon:'🏥',
+    toepfe:['sonderklasse','ambulant','transport','physio'],
+    schritte:[
+      'Vor der Aufnahme eine Deckungszusage einholen. Ohne sie bleibst du unter Umständen auf der Differenz sitzen.',
+      'Klären, ob Vor- und Nachbehandlung mitgedeckt sind – das wird oft übersehen.',
+      'An die Anschlussheilbehandlung denken: Physiotherapie und Reha laufen häufig über eigene Töpfe.',
+    ]},
+  { key:'schwanger', label:'Schwangerschaft und Geburt', icon:'👶',
+    toepfe:['geburt','sonderklasse','vorsorge'],
+    schritte:[
+      'Wartezeiten prüfen: Mutterschaftsleistungen setzen oft eine Mindestvertragsdauer voraus.',
+      'Rechtzeitig klären, welche Zusatzuntersuchungen gedeckt sind.',
+    ]},
+  { key:'ausland', label:'Krankheit oder Unfall im Ausland', icon:'✈️',
+    toepfe:['ausland','transport','ambulant'],
+    vertraege:['unfall'],
+    dringend:true,
+    schritte:[
+      'Noch vor Ort die Notrufnummer der Versicherung anrufen – viele Tarife verlangen das für den vollen Schutz.',
+      'Originalbelege und Diagnosen mitnehmen, im Ausland gibt es sie später oft nicht mehr.',
+      'Auch die Kreditkarte prüfen: Reiseschutz ist dort häufig enthalten und wird vergessen.',
+    ]},
+  { key:'medikament', label:'Dauermedikation oder teures Präparat', icon:'💊',
+    toepfe:['medikamente'],
+    schritte:[
+      'Privatrezepte und nicht erstattungsfähige Präparate laufen oft trotzdem über die private Versicherung.',
+      'Belege sammeln: Bei laufender Medikation summiert sich das über das Jahr erheblich.',
+    ]},
+];
+
+/* Welche der erfassten Töpfe und Verträge passen zu diesem Anlass? */
+function anlassTreffer(anlass){
+  const meine = (leistungen||[]).filter(l=> (anlass.toepfe||[]).includes(l.key));
+  const vertr = (vertraege||[]).filter(v=> (anlass.vertraege||[]).includes(v.art));
+  const fehlend = (anlass.toepfe||[]).filter(k=> !(leistungen||[]).some(l=> l.key === k))
+                    .map(k=> katalogByKey[k]).filter(Boolean);
+  return { meine, vertr, fehlend };
+}
+
+/* ---- Periodenende, fuer Verfallswarnungen ---- */
+function periodeEnde(policy, zeitraum){
+  const start = periodeStart(policy, zeitraum);
+  const jahre = Math.max(1, (ZEITRAEUME[zeitraum]||ZEITRAEUME.jahr).monate / 12);
+  const [y,m,d] = start.split('-').map(Number);
+  const e = new Date(y + jahre, m-1, d, 12);   // Mittag: immun gegen Sommerzeitwechsel
+  e.setDate(e.getDate() - 1);
+  return e;
+}
+
+/* ==================================================================
+   Hinweise, die sich allein aus den eigenen Daten ergeben.
+   Jeder Hinweis nennt einen konkreten naechsten Schritt – reine
+   Feststellungen ohne Handlung sind nur Rauschen.
+   ================================================================== */
+function chancenHinweise(){
+  const h = [];
+  const heute = new Date();
+
+  /* 1. Töpfe, die ungenutzt auslaufen */
+  (leistungen||[]).forEach(l=>{
+    if(l.limitTyp !== 'betrag' && l.limitTyp !== 'anzahl') return;
+    if(!l.limit) return;
+    const v = verbrauchFuer(l, policy, usage);
+    const rest = restVon(l, v);
+    if(rest === null || rest <= 0) return;
+    const ende = periodeEnde(policy, l.zeitraum);
+    const tage = Math.ceil((ende - heute) / 86400000);
+    if(tage < 0 || tage > 120) return;
+    const anteil = l.limit ? rest / l.limit : 0;
+    h.push({
+      stufe: tage <= 45 ? 'hoch' : 'mittel',
+      icon: l.icon || '⏳',
+      titel: `${l.name}: ${l.limitTyp === 'anzahl' ? rest + '×' : fmtEUR(rest)} verfallen in ${tage} Tagen`,
+      text: `Der Topf läuft am ${fmtDate(isoLocal(ende))} ab. ` +
+            (anteil > 0.9 ? 'Bisher hast du daraus nichts abgerufen.' : 'Der Rest verfällt ungenutzt.'),
+      aktion:'leistung', ziel:l.id,
+    });
+  });
+
+  /* 2. Mehrjahres-Töpfe, die wieder frei sind */
+  (leistungen||[]).forEach(l=>{
+    if(l.zeitraum === 'jahr' || l.zeitraum === 'einmalig') return;
+    const v = verbrauchFuer(l, policy, usage);
+    if(v.genutzt > 0) return;
+    const alle = (usage||[]).filter(u=> u.leistungId === l.id);
+    if(!alle.length) return;                       // nie genutzt: eigener Fall oben
+    h.push({
+      stufe:'mittel', icon:l.icon || '🔄',
+      titel:`${l.name}: Rahmen ist wieder frei`,
+      text:`Die neue Periode läuft seit ${fmtDate(periodeStart(policy, l.zeitraum))}. ` +
+           `Zuletzt genutzt am ${fmtDate(alle.map(u=>u.datum).sort().reverse()[0])}.`,
+      aktion:'leistung', ziel:l.id,
+    });
+  });
+
+  /* 3. Rechnungen, die nur bei einer Stelle waren */
+  invoices.forEach(inv=>{
+    if(inv.status === 'abgeschlossen') return;
+    const w = inv.weg || 'wahlarzt';
+    if(inv.submittedOegkAt && !inv.submittedKvAt && (BEDARF[w]||{}).kv){
+      h.push({ stufe:'mittel', icon:'🏥',
+        titel:`„${inv.title || 'Rechnung'}“ war noch nicht bei der privaten Versicherung`,
+        text:`Bei der ÖGK eingereicht am ${fmtDate(inv.submittedOegkAt)}. Der Restbetrag ist damit noch offen.`,
+        aktion:'rechnung', ziel:inv.id });
+    }
+    if(!inv.submittedOegkAt && !inv.submittedKvAt && Number(inv.amount) > 0 && inv.status === 'bezahlt'){
+      h.push({ stufe:'mittel', icon:'📤',
+        titel:`„${inv.title || 'Rechnung'}“ ist nirgends eingereicht`,
+        text:`${fmtEUR(inv.amount)} vom ${fmtDate(inv.date)} – bisher hast du dafür nichts zurückgeholt.`,
+        aktion:'rechnung', ziel:inv.id });
+    }
+  });
+
+  /* 4. Fristen, die auslaufen */
+  invoices.forEach(inv=>{
+    const f = fristStatus(inv);
+    if(!f) return;
+    h.push({
+      stufe: f.stufe === 'abgelaufen' ? 'hoch' : 'hoch',
+      icon: f.stufe === 'abgelaufen' ? '⛔' : '⏰',
+      titel: f.stufe === 'abgelaufen'
+        ? `„${inv.title || 'Rechnung'}“: Einreichfrist ist abgelaufen`
+        : `„${inv.title || 'Rechnung'}“: nur noch ${f.tage} Tage Zeit`,
+      text: f.stufe === 'abgelaufen'
+        ? `Die Frist endete am ${fmtDate(isoLocal(f.ende))}. Ein Versuch kann sich trotzdem lohnen – manche Stellen kulanzen.`
+        : `Frist bis ${fmtDate(isoLocal(f.ende))}. Danach ist der Anspruch weg.`,
+      aktion:'rechnung', ziel:inv.id });
+  });
+
+  /* 5. Kündigungsfenster */
+  (vertraege||[]).forEach(v=>{
+    const f = kuendigungsFenster(v);
+    if(!f || f.tage < 0 || f.tage > 60) return;
+    h.push({ stufe:'mittel', icon:'📄',
+      titel:`${v.versicherer || (VERTRAGSARTEN[v.art||'sonstige'].label)}: Kündigungsfenster schließt in ${f.tage} Tagen`,
+      text:`Stichtag ${fmtDate(isoLocal(f.stichtag))}. Wenn du wechseln oder anpassen willst, ist jetzt der Zeitpunkt.`,
+      aktion:'vertrag', ziel:v.id });
+  });
+
+  /* 6. Keine Unfallversicherung erfasst */
+  if((vertraege||[]).length && !(vertraege||[]).some(v=> v.art === 'unfall')){
+    h.push({ stufe:'niedrig', icon:'🩹',
+      titel:'Keine Unfallversicherung erfasst',
+      text:'Falls du eine hast, trag sie ein. Nach einem Sturz zählen bei diesen Verträgen oft nur wenige Tage Meldefrist – dann muss klar sein, wo du meldest.',
+      aktion:'vertrag', ziel:null });
+  }
+
+  const rang = { hoch:0, mittel:1, niedrig:2 };
+  return h.sort((a,b)=> rang[a.stufe] - rang[b.stufe]);
 }
 
 /* ---- Berechnung: was ist verbraucht, was bleibt ---- */
@@ -1024,6 +1292,7 @@ const INFO = {
   erstattung: '<b>Wozu diese Felder</b><br>Trag ein, was <b>tatsächlich</b> zurückgekommen ist – nicht was du beantragt hast. Daraus entsteht deine persönliche Erstattungsquote je Belegart.<br><br>Das ist die Zahl, die der Versicherer über dich längst hat und du bisher nicht. Wird ein Posten gekürzt, notier die Begründung: Muster werden erst über mehrere Fälle sichtbar.',
   praemie: '<b>Wie gerechnet wird</b><br>Jeder Prämieneintrag gilt ab seinem Datum bis zum nächsten. Die App rechnet monatsweise hoch und kommt so auf die Summe über die gesamte Laufzeit.<br><br>Bei jeder Erhöhung einen neuen Eintrag anlegen – dann zeigt die App die Entwicklung in Prozent. Einzelne Anpassungen wirken klein; erst über die Jahre sieht man, was sie ausmachen.',
   frist: '<b>Fristen</b><br>Bei der ÖGK kannst du eine Wahlarztrechnung <b>42 Monate ab Leistungsdatum</b> einreichen. Private Versicherer setzen eigene, oft deutlich kürzere Fristen – trag sie unter Prämien ein.<br><br>Die App warnt 90 Tage vorher. Eine verfallene Rechnung ist verschenktes Geld, und erinnert wirst du von niemandem.',
+  chancen: '<b>Wofür diese Seite da ist</b><br>Versicherer wissen genau, welche Leistungen du nicht abrufst – du bisher nicht. Hier siehst du, was aus deiner erfassten Polizze offen ist, was demnächst verfällt und wo Fristen laufen.<br><br>Die Anlässe oben sind <b>keine Empfehlung, etwas in Anspruch zu nehmen</b>. Sie zeigen nur, welche deiner erfassten Töpfe zu einer Situation gehören und was administrativ dazugehört. Ob eine Behandlung sinnvoll ist, entscheidest du mit deinem Arzt.',
   verbrauch: '<b>Wie die App zählt</b><br>Jeder Eintrag zieht vom Limit ab, solange er im aktuellen Zeitraum liegt. Das Versicherungsjahr richtet sich nach dem Beginn in der Polizze – ist keiner hinterlegt, rechnet die App mit dem Kalenderjahr.<br><br>Du kannst Beträge von Hand eintragen oder direkt aus einer erfassten Rechnung übernehmen.<br><br><b>Wichtig:</b> Die App kennt nur, was du ihr sagst. Sie hat keinen Zugang zu deinem Versicherungskonto und weiß nicht, was dort tatsächlich verbucht ist.',
   qr: '<b>QR-Code auf der Rechnung</b><br>Trägt der Beleg einen Zahlungs-QR-Code („Zahlen mit Code“), liest die App Betrag, Empfänger und Referenz exakt daraus – deutlich zuverlässiger als aus dem Bild geraten.<br><br>Ohne Code greift automatisch die Texterkennung.',
   docs: '<b>Warum mehrere Dokumente</b><br>Ein Vorgang braucht je nach Station verschiedene Unterlagen:<br><br><b>Für die ÖGK:</b> Rechnung <i>und</i> Zahlungsnachweis. Der fehlende Zahlungsnachweis ist der häufigste Ablehnungsgrund.<br><br><b>Für die private Versicherung:</b> Rechnung <i>und</i> der ÖGK-Bescheid. Den gibt es erst Wochen später – deshalb wächst die Karte mit dem Vorgang mit.<br><br>Die App prüft vor jedem Upload, ob alles beisammen ist.',
@@ -1581,7 +1850,7 @@ async function loadAll(){
   for(const inv of invoices){ if(migrate(inv)) await dbPut(inv); }
   render();
 }
-function render(){ renderStats(); renderTabs(); renderBoard(); updateBadge(); }
+function render(){ renderStats(); renderTabs(); renderBoard(); updateBadge(); updateChancenZaehler(); }
 
 /* Zahl auf dem App-Icon: was ist bezahlt, aber noch nirgends eingereicht. */
 function updateBadge(){
@@ -1848,7 +2117,7 @@ function belegDateiname(inv, doc, mitRolle){
     .replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40);
   const d      = doc || (inv.docs||[])[0] || { name: inv.fileName, type: inv.fileType, kind:'rechnung' };
   const ext    = (d.name||'').match(/\.[a-z0-9]+$/i);
-  const datum  = inv.date || new Date().toISOString().slice(0,10);
+  const datum  = inv.date || isoLocal(new Date());
   const betrag = (inv.amount !== '' && inv.amount != null && !isNaN(inv.amount) && inv.amount !== 0)
                ? '_' + String(Number(inv.amount).toFixed(2)).replace('.','-') + 'EUR' : '';
   /* Rolle mit in den Namen, sobald mehrere Dateien gleichzeitig
@@ -2176,7 +2445,7 @@ function openEditor(id, presetStatus){
         <div class="field"><label>Betrag (€)</label>
           <input type="number" inputmode="decimal" step="0.01" id="f-amount" value="${inv ? inv.amount : ''}" placeholder="0,00"></div>
         <div class="field"><label>Datum</label>
-          <input type="date" id="f-date" value="${inv ? inv.date : new Date().toISOString().slice(0,10)}"></div>
+          <input type="date" id="f-date" value="${inv ? inv.date : isoLocal(new Date())}"></div>
       </div>
       <div class="field">
         <label>Art des Belegs</label>
@@ -2444,7 +2713,7 @@ async function exportBackup(){
   const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'rechnungs-tracker-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.download = 'rechnungs-tracker-backup-' + isoLocal(new Date()) + '.json';
   a.click();
   toast('Backup heruntergeladen');
 }
@@ -2596,7 +2865,9 @@ async function loadDeckung(){
   policy = pols.find(p=> (p.art || 'kranken') === 'kranken') || null;
   leistungen = policy ? (policy.leistungen || []) : [];
   usage      = await stAll('usage');
+  vertraege  = pols;
   renderDeckung();
+  updateChancenZaehler();
 }
 
 function renderDeckung(){
@@ -2992,7 +3263,7 @@ function openVerbrauchSheet(l){
         <div class="field"><label>${l.limitTyp==='anzahl' ? 'Anzahl' : 'Betrag (€)'}</label>
           <input type="number" inputmode="decimal" step="${l.limitTyp==='anzahl'?'1':'0.01'}" id="u-wert" placeholder="0"></div>
         <div class="field"><label>Datum</label>
-          <input type="date" id="u-datum" value="${new Date().toISOString().slice(0,10)}"></div>
+          <input type="date" id="u-datum" value="${isoLocal(new Date())}"></div>
       </div>
       ${kandidaten.length ? `
         <div class="grouplabel">Oder aus einer Rechnung übernehmen</div>
@@ -3037,7 +3308,7 @@ function openPraemienSheet(){
       <div class="grouplabel">Neuer Eintrag</div>
       <div class="row2">
         <div class="field"><label>Gültig ab</label>
-          <input type="date" id="pr-ab" value="${new Date().toISOString().slice(0,10)}"></div>
+          <input type="date" id="pr-ab" value="${isoLocal(new Date())}"></div>
         <div class="field"><label>Betrag (€)</label>
           <input type="number" inputmode="decimal" step="0.01" id="pr-betrag" placeholder="0,00"></div>
       </div>
@@ -3356,18 +3627,19 @@ function kuendigungsFenster(v){
   const [, m, t] = v.hauptfaelligkeit.split('-').map(Number);
   const heute = new Date();
   let jahr = heute.getFullYear();
-  const hf = ()=> new Date(jahr, m-1, t);
+  const hf = ()=> new Date(jahr, m-1, t, 12);
   if(hf() < heute) jahr++;
-  const stichtag = new Date(jahr, m-1, t);
+  const stichtag = new Date(jahr, m-1, t, 12);
   stichtag.setMonth(stichtag.getMonth() - (Number(v.kuendigungsfrist)||3));
   const tage = Math.ceil((stichtag - heute) / 86400000);
-  return { stichtag, tage, hauptfaellig: new Date(jahr, m-1, t) };
+  return { stichtag, tage, hauptfaellig: new Date(jahr, m-1, t, 12) };
 }
 
 let vertraege = [];
 async function loadVertraege(){
   vertraege = await stAll('policies');
   renderVertraege();
+  updateChancenZaehler();
 }
 function renderVertraege(){
   const el = document.getElementById('vertraege');
@@ -3389,9 +3661,9 @@ function renderVertraege(){
           ${monat != null ? `<span class="vpraemie">${fmtEUR(monat)}/Mon.</span>` : ''}</div>
         <div class="lmeta">${escapeHTML(art.label)}${v.tarif ? ' · ' + escapeHTML(v.tarif) : ''}</div>
         ${f ? `<div class="vfrist ${dringend?'an':''}">
-            Kündigung bis <b>${fmtDate(f.stichtag.toISOString().slice(0,10))}</b>
+            Kündigung bis <b>${fmtDate(isoLocal(f.stichtag))}</b>
             ${f.tage >= 0 ? `· noch ${f.tage} Tage` : ''}
-            · Hauptfälligkeit ${fmtDate(f.hauptfaellig.toISOString().slice(0,10))}
+            · Hauptfälligkeit ${fmtDate(isoLocal(f.hauptfaellig))}
           </div>` : '<div class="lmeta">Keine Hauptfälligkeit hinterlegt</div>'}
       </button>`;
     }).join('') : `<div class="leer"><div class="leer-ic">📄</div>
@@ -3458,6 +3730,143 @@ function openVertragSheet(id){
   });
 }
 
+/* ==================================================================
+   CHANCEN-ANSICHT
+   ================================================================== */
+async function loadChancen(){
+  if(!policy && !vertraege.length){
+    const pols = await stAll('policies');
+    policy     = pols.find(p=> (p.art||'kranken') === 'kranken') || null;
+    leistungen = policy ? (policy.leistungen||[]) : [];
+    usage      = await stAll('usage');
+    vertraege  = pols;
+  }
+  renderChancen();
+}
+
+function renderChancen(){
+  const el = document.getElementById('chancen');
+  const h  = chancenHinweise();
+
+  el.innerHTML = `
+    <div class="chintro">
+      <b>Was steht dir zu, das gerade liegen bleibt?</b>
+      <span>Versicherer werten laufend aus, welche Leistungen du nicht abrufst.
+        Diese Seite dreht das um: Sie zeigt, was aus deiner erfassten Polizze noch offen ist
+        und wo Fristen laufen.</span>
+    </div>
+
+    <div class="grouplabel">Ich habe gerade …
+      <button class="info-btn" data-info="chancen" aria-label="Wie ist das gemeint?">i</button></div>
+    <div class="anlassgrid">
+      ${ANLAESSE.map(a=>`<button type="button" class="anlass" data-anlass="${a.key}">
+        <span class="aic">${a.icon}</span><span>${escapeHTML(a.label)}</span></button>`).join('')}
+    </div>
+
+    <div class="grouplabel">Hinweise aus deinen Daten ${h.length ? `<span class="cnt">${h.length}</span>` : ''}</div>
+    ${h.length ? h.map((x,i)=>`
+      <div class="hinweis ${x.stufe}" data-hin="${i}">
+        <span class="hic">${x.icon}</span>
+        <span class="hmain"><b>${escapeHTML(x.titel)}</b><span>${escapeHTML(x.text)}</span></span>
+        ${x.ziel ? '<span class="hgo">›</span>' : ''}
+      </div>`).join('')
+      : `<p class="hint">Nichts offen – oder es sind noch zu wenig Daten erfasst.
+         Trag Polizze, Leistungstöpfe und Verträge ein, dann wird diese Liste nützlich.</p>`}
+
+    <p class="disclaimer">Diese Hinweise beziehen sich ausschließlich auf <b>Verwaltung und Fristen</b>.
+      Sie sagen nichts darüber, ob eine Behandlung medizinisch sinnvoll oder nötig ist – das entscheidet
+      ärztlich. Und ob eine Leistung tatsächlich gedeckt ist, steht in deiner Polizze, nicht hier.</p>`;
+
+  el.querySelectorAll('[data-anlass]').forEach(b=>
+    b.addEventListener('click', ()=> openAnlassSheet(b.dataset.anlass)));
+  el.querySelectorAll('[data-hin]').forEach(b=> b.addEventListener('click', ()=>{
+    const x = h[Number(b.dataset.hin)];
+    if(!x || !x.ziel) { if(x && x.aktion === 'vertrag') setView('vertraege'); return; }
+    if(x.aktion === 'rechnung'){ setView('rechnungen'); openEditor(x.ziel); }
+    if(x.aktion === 'leistung'){ setView('deckung');    setTimeout(()=> openLeistungSheet(x.ziel), 120); }
+    if(x.aktion === 'vertrag'){  setView('vertraege');  setTimeout(()=> openVertragSheet(x.ziel), 120); }
+  }));
+}
+
+function openAnlassSheet(key){
+  const a = ANLAESSE.find(x=> x.key === key);
+  if(!a) return;
+  const t = anlassTreffer(a);
+
+  openSheet(`
+    <div class="sheet-head"><h2>${a.icon} ${escapeHTML(a.label)}</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      ${a.dringend ? `<div class="eilig">⏱ <b>Hier zählt Tempo.</b> Bei Unfällen verlangen viele Polizzen
+        die Meldung binnen weniger Tage. Erst melden, dann alles Weitere.</div>` : ''}
+
+      <div class="grouplabel">Was du erfasst hast und was noch frei ist</div>
+      ${t.meine.length ? t.meine.map(l=>{
+        const v = verbrauchFuer(l, policy, usage);
+        const rest = restVon(l, v);
+        return `<div class="chtopf">
+          <span class="lic">${l.icon||'📋'}</span>
+          <span class="hmain"><b>${escapeHTML(l.name)}</b>
+            <span>${rest !== null
+              ? (l.limitTyp === 'anzahl' ? rest + '× frei von ' + l.limit + '×'
+                                         : fmtEUR(rest) + ' frei von ' + fmtEUR(l.limit))
+              : (l.limitTyp === 'prozent' ? l.limit + ' % der Kosten gedeckt' : 'ohne Limit erfasst')}
+              · ${escapeHTML(ZEITRAEUME[l.zeitraum].label)}</span></span>
+          <button type="button" class="docbtn" data-topf="${l.id}" aria-label="Öffnen">›</button>
+        </div>`;
+      }).join('') : '<p class="hint">Zu diesem Anlass hast du noch keine passenden Leistungen erfasst.</p>'}
+
+      ${t.vertr.length ? `<div class="grouplabel">Betroffene Verträge</div>
+        ${t.vertr.map(v=>`<div class="chtopf"><span class="lic">${VERTRAGSARTEN[v.art].icon}</span>
+          <span class="hmain"><b>${escapeHTML(v.versicherer || VERTRAGSARTEN[v.art].label)}</b>
+          <span>${escapeHTML(VERTRAGSARTEN[v.art].label)}</span></span></div>`).join('')}` : ''}
+
+      ${t.fehlend.length ? `<div class="grouplabel">Wäre hier relevant, fehlt aber</div>
+        <p class="hint">${t.fehlend.map(k=> k.icon + ' ' + escapeHTML(k.name)).join(' · ')}<br>
+        Falls deine Polizze das abdeckt, ergänze es unter Deckung – sonst rechnet die App ohne.</p>` : ''}
+
+      <div class="grouplabel">Woran es meistens scheitert</div>
+      <ol class="steps">${a.schritte.map(s=> `<li>${escapeHTML(s)}</li>`).join('')}</ol>
+
+      <p class="disclaimer">Administrative Hinweise, keine medizinische Beratung. Ob eine Behandlung
+        angezeigt ist, klärst du ärztlich; ob sie gedeckt ist, steht in deiner Polizze.</p>
+    </div>
+    <div class="sheet-foot">
+      <button class="primary grow" id="anRechnung">Rechnung dafür anlegen</button>
+    </div>`);
+
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelectorAll('[data-topf]').forEach(b=> b.addEventListener('click', ()=>{
+    const id = b.dataset.topf; closeSheet(); setView('deckung');
+    setTimeout(()=> openLeistungSheet(id), 120);
+  }));
+  sheet.querySelector('#anRechnung').addEventListener('click', ()=>{
+    closeSheet(); setView('rechnungen'); openEditor(null);
+  });
+}
+
+/* Zaehler in der Navigation und Banner in der Rechnungsansicht */
+function updateChancenZaehler(){
+  const h = (policy || vertraege.length) ? chancenHinweise() : [];
+  const dringend = h.filter(x=> x.stufe === 'hoch').length;
+  const btn = document.querySelector('.mainbtn[data-view="chancen"]');
+  if(btn){
+    let b = btn.querySelector('.navcnt');
+    if(h.length){
+      if(!b){ b = document.createElement('span'); b.className = 'navcnt'; btn.appendChild(b); }
+      b.textContent = h.length;
+      b.classList.toggle('hoch', dringend > 0);
+    } else if(b) b.remove();
+  }
+  const banner = document.getElementById('chancenBanner');
+  if(banner){
+    if(dringend){
+      banner.hidden = false;
+      banner.innerHTML = `<span>💡 ${dringend} ${dringend===1?'Sache ist':'Sachen sind'} dringend – Fristen oder verfallende Leistungen</span><span class="hgo">›</span>`;
+    } else banner.hidden = true;
+  }
+}
+
 /* ---------- Ansichtswechsel ---------- */
 let currentView = 'rechnungen';
 function setView(v){
@@ -3465,15 +3874,18 @@ function setView(v){
   document.getElementById('view-rechnungen').hidden = (v !== 'rechnungen');
   document.getElementById('view-deckung').hidden    = (v !== 'deckung');
   document.getElementById('view-vertraege').hidden  = (v !== 'vertraege');
+  document.getElementById('view-chancen').hidden    = (v !== 'chancen');
   document.getElementById('btnAdd').hidden      = (v !== 'rechnungen');
   document.getElementById('btnLeistung').hidden = (v !== 'deckung');
   document.querySelectorAll('.mainbtn').forEach(b=>
     b.setAttribute('aria-selected', String(b.dataset.view === v)));
   if(v === 'deckung')   loadDeckung();
   if(v === 'vertraege') loadVertraege();
+  if(v === 'chancen')   loadChancen();
 }
 document.querySelectorAll('.mainbtn').forEach(b=>
   b.addEventListener('click', ()=> setView(b.dataset.view)));
+document.getElementById('chancenBanner').addEventListener('click', ()=> setView('chancen'));
 document.getElementById('btnLeistung').addEventListener('click', ()=>{
   if(!policy){ toast('Erst Polizze anlegen'); return; }
   openKatalogSheet();

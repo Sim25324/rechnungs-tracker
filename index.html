@@ -35,6 +35,12 @@
 }
 *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
 html{ -webkit-text-size-adjust:100%; }
+/* Jede Komponente, die selbst "display" setzt (button, .chbanner, ...),
+   gewinnt sonst gegen das hidden-Attribut – Autoren-CSS schlaegt die
+   UA-Regel [hidden]{display:none} immer, unabhaengig von Spezifitaet.
+   Deshalb hier einmal zentral erzwingen, statt es ueberall einzeln
+   nachzuruesten. */
+[hidden]{ display:none !important; }
 body{
   margin:0; background:var(--bg); color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
@@ -223,9 +229,9 @@ button:disabled{ opacity:.5; }
   display:flex; gap:6px; align-items:center;
 }
 .fab{
-  flex:none; width:var(--tap); height:var(--tap); min-height:var(--tap);
-  border-radius:50%; background:var(--blue); color:#fff; font-size:24px; font-weight:600;
-  line-height:1; box-shadow:0 6px 18px rgba(37,99,235,.35); border:none;
+  flex:none; width:52px; height:52px; min-height:52px; margin-top:-16px;
+  border-radius:50%; background:var(--blue); color:#fff; font-size:26px; font-weight:600;
+  line-height:1; box-shadow:0 6px 16px rgba(37,99,235,.4); border:3px solid var(--bg);
 }
 
 /* ---------- Bottom-Sheet (ersetzt das Desktop-Modal) ---------- */
@@ -395,10 +401,11 @@ button:disabled{ opacity:.5; }
 .stat.late .n{ color:#9a3412; }
 
 .mainbtn{
-  flex:1; min-height:42px; border-radius:10px; font-size:13px; font-weight:700;
-  background:#fff; color:var(--sub); border:1px solid var(--line);
+  flex:1; min-height:46px; border-radius:10px; font-size:11.5px; font-weight:700;
+  background:transparent; color:var(--sub); border:none; padding:4px 2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
-.mainbtn[aria-selected="true"]{ background:var(--ink); color:#fff; border-color:var(--ink); }
+.mainbtn[aria-selected="true"]{ background:var(--blue-l); color:var(--blue); }
 
 /* Erkannt-Kasten (Teilen-Triage, Polizzen-Analyse) */
 .erkannt{
@@ -590,7 +597,7 @@ button:disabled{ opacity:.5; }
   padding:1px 6px; font-size:10.5px; font-weight:800;
 }
 .navcnt.hoch{ background:#dc2626; }
-.mainbtn[aria-selected="true"] .navcnt{ background:rgba(255,255,255,.3); }
+.mainbtn[aria-selected="true"] .navcnt{ background:var(--blue); }
 .chbanner{
   display:flex; align-items:center; gap:10px; width:calc(100% - 24px);
   margin:8px calc(12px + var(--sar)) 0 calc(12px + var(--sal));
@@ -2143,8 +2150,8 @@ function renderFristBanner(){
    dass die drei Kassa-Schritte nur Vorbereitung sind und der Wert
    der App im Schritt "privat einreichen" liegt. */
 const PHASE_GROUPS = [
-  { phase:'kassa',  label:'Vorbereitung bei der Kasse' },
-  { phase:'kv',     label:'🎯 Private Versicherung' },
+  { phase:'kassa',  label:'Vorbereitung' },
+  { phase:'kv',     label:'🎯 Privat-KV' },
   { phase:'fertig', label:'Fertig' },
 ];
 function renderTabs(){

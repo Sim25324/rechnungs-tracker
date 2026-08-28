@@ -139,6 +139,71 @@ button:disabled{ opacity:.5; }
 .alertcard.sev-amber{ background:linear-gradient(135deg,#1e3a5f,#0f2942); }
 .alertcard.sev-info{ background:linear-gradient(135deg,#334155,#1e293b); }
 
+/* ---------- Erster Start ---------- */
+.leerstart{ padding:14px calc(12px + var(--sar)) 0 calc(12px + var(--sal)); }
+.ls-card{
+  background:#fff; border:1.5px solid var(--line); border-radius:16px;
+  padding:22px 18px; text-align:center;
+}
+.ls-ic{ font-size:38px; line-height:1; margin-bottom:8px; }
+.ls-card h2{ font-size:17px; margin:0 0 8px; }
+.ls-card p{ font-size:13.5px; color:var(--sub); line-height:1.55; margin:0 0 16px; }
+.ls-card button{ width:100%; margin-bottom:8px; }
+.ls-fuss{ font-size:12px !important; color:#94a3b8 !important; margin:12px 0 0 !important; }
+
+/* ---------- Nachfassen: ist die Erstattung schon da? ---------- */
+.nachfassen{ padding:10px calc(12px + var(--sar)) 0 calc(12px + var(--sal)); }
+.nachcard{
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+  background:#fffbeb; border:1.5px solid #fde68a; border-radius:14px; padding:12px 14px;
+}
+.nachcard .nic{
+  flex:none; width:34px; height:34px; border-radius:10px; background:#fef3c7;
+  display:flex; align-items:center; justify-content:center; font-size:16px;
+}
+.nachcard .ntxt{ flex:1; min-width:0; }
+.nachcard .ntxt b{ display:block; font-size:14px; color:#92400e; }
+.nachcard .ntxt span{ font-size:12.5px; color:#a16207; }
+.nachcard .ngo{ flex:none; color:#b45309; font-size:18px; font-weight:800; }
+/* Schnelleingabe im Nachfass-Sheet */
+.nfrow{
+  display:flex; align-items:center; gap:10px; padding:10px 0;
+  border-bottom:1px dashed var(--line);
+}
+.nfrow .nfmain{ flex:1; min-width:0; }
+.nfrow .nftitle{ font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.nfrow .nfsub{ font-size:11.5px; color:var(--sub); }
+.nfrow input{
+  flex:none; width:104px; padding:9px 10px; border:1px solid #cbd5e1; border-radius:8px;
+  font-family:inherit; font-size:16px; min-height:40px; text-align:right; background:#fff; color:var(--ink);
+}
+
+/* ---------- "Zurückgeholt": der Nutzen auf einen Blick ---------- */
+.gewinn{
+  margin:12px calc(12px + var(--sar)) 0 calc(12px + var(--sal));
+  background:linear-gradient(135deg,#065f46,#047857); color:#fff;
+  border-radius:14px; padding:14px 16px;
+}
+.gewinn .gl{ font-size:12px; opacity:.85; font-weight:600; }
+.gewinn .gn{ font-size:26px; font-weight:800; line-height:1.2; margin:2px 0; }
+.gewinn .gs{ font-size:12px; opacity:.85; }
+
+/* ---------- Suche und Personenfilter ---------- */
+.suchleiste{ padding:8px calc(12px + var(--sar)) 0 calc(12px + var(--sal)); }
+.suchfeld{
+  width:100%; padding:11px 12px; border:1px solid #cbd5e1; border-radius:10px;
+  font-family:inherit; font-size:16px; min-height:var(--tap); background:#fff; color:var(--ink);
+}
+.suchfeld:focus{ outline:2px solid var(--blue); outline-offset:-1px; border-color:var(--blue); }
+.personchips{ display:flex; gap:6px; overflow-x:auto; padding:8px 0 2px; scrollbar-width:none; }
+.personchips::-webkit-scrollbar{ display:none; }
+.pchip{
+  flex:none; min-height:34px; padding:5px 12px; border-radius:20px; font-size:12.5px;
+  font-weight:700; border:1px solid var(--line); background:#fff; color:var(--sub);
+}
+.pchip[aria-pressed="true"]{ background:var(--blue); border-color:var(--blue); color:#fff; }
+.suchleer{ text-align:center; color:#94a3b8; font-size:13.5px; padding:30px 14px; }
+
 /* ---------- "Bereit zum Einreichen": Sammel-Upload ---------- */
 .ready{ display:flex; flex-direction:column; gap:8px; padding:10px calc(12px + var(--sar)) 0 calc(12px + var(--sal)); }
 .readycard{
@@ -361,6 +426,12 @@ button:disabled{ opacity:.5; }
   border:none; background:none; padding:0; min-height:0; font:inherit;
   color:var(--blue); text-decoration:underline; font-weight:700; cursor:pointer;
 }
+/* Datenschutz-Zusage direkt am Beleg-Feld */
+.datenschutz-zusage{
+  font-size:12px; line-height:1.5; color:#166534; background:var(--green-l);
+  border:1px solid #bbf7d0; border-radius:8px; padding:7px 10px; margin:0 0 10px;
+}
+.datenschutz-zusage .linklike{ font-size:12px; color:#15803d; }
 
 /* Karte: Weg-Kennzeichnung und naechster Schritt */
 .card .weg-tag{
@@ -767,9 +838,12 @@ body.printing #printarea{ display:block; }
 
 <section id="view-uebersicht">
   <div class="greeting" id="greeting"></div>
+  <div class="gewinnwrap" id="gewinn"></div>
   <div class="stats" id="stats"></div>
   <div class="alerts" id="alerts"></div>
   <div class="ready" id="ready"></div>
+  <div class="nachfassen" id="nachfassen"></div>
+  <div class="leerstart" id="leerstart" hidden></div>
   <div class="recentblock">
     <div class="recenthead"><h2>Zuletzt erfasst</h2><button type="button" id="btnRecentAll">Alle →</button></div>
     <div class="recentlist" id="recentlist"></div>
@@ -777,6 +851,11 @@ body.printing #printarea{ display:block; }
 </section>
 
 <section id="view-rechnungen" hidden>
+  <div class="suchleiste">
+    <input type="search" id="suche" class="suchfeld" placeholder="Suchen: Arzt, Person, Betrag …"
+           autocomplete="off" aria-label="Rechnungen durchsuchen">
+    <div class="personchips" id="personchips"></div>
+  </div>
   <div class="board" id="board"></div>
 </section>
 
@@ -798,6 +877,7 @@ body.printing #printarea{ display:block; }
     <button type="button" class="morerow" id="mVertraege"><span class="mr-ic">📄</span><span class="mr-label">Verträge</span><span class="mr-go">›</span></button>
     <button type="button" class="morerow" id="mChancen"><span class="mr-ic">💡</span><span class="mr-label">Chancen</span><span class="navcnt" id="mrChancenBadge" hidden></span><span class="mr-go">›</span></button>
     <div class="grouplabel">Werkzeuge</div>
+    <button type="button" class="morerow" id="mPersonen"><span class="mr-ic">👥</span><span class="mr-label">Wer verursacht welche Kosten</span><span class="mr-go">›</span></button>
     <button type="button" class="morerow" id="mMakler"><span class="mr-ic">📤</span><span class="mr-label">Übersicht für meinen Makler</span><span class="mr-go">›</span></button>
     <button type="button" class="morerow" id="mWege"><span class="mr-ic">🗺</span><span class="mr-label">Wie die Erstattung läuft</span><span class="mr-go">›</span></button>
     <div class="grouplabel">Daten</div>
@@ -1797,14 +1877,19 @@ function showInfo(btn){
   popover.style.top = top + 'px';
 }
 function hideInfo(){ popover.classList.remove('open'); popoverAnchor = null; }
+/* Popover-Ausloeser: die runden ⓘ-Knoepfe und ausdruecklich als Link
+   gesetzte Verweise. Bewusst NICHT jedes [data-info] – die Zeilen in
+   "Mehr" tragen dasselbe Attribut, fuellen damit aber ihren eigenen
+   Textblock statt ein Popover zu oeffnen. */
+const POPOVER_TRIGGER = '.info-btn, .linklike[data-info]';
 document.addEventListener('click', e=>{
-  const btn = e.target.closest('.info-btn');
+  const btn = e.target.closest(POPOVER_TRIGGER);
   if(btn){ e.stopPropagation(); (popoverAnchor === btn) ? hideInfo() : showInfo(btn); return; }
   if(!e.target.closest('.popover')) hideInfo();
 });
 if(window.matchMedia('(hover:hover) and (pointer:fine)').matches){
-  document.addEventListener('mouseover', e=>{ const b = e.target.closest('.info-btn'); if(b) showInfo(b); });
-  document.addEventListener('mouseout',  e=>{ if(e.target.closest('.info-btn')) hideInfo(); });
+  document.addEventListener('mouseover', e=>{ const b = e.target.closest(POPOVER_TRIGGER); if(b) showInfo(b); });
+  document.addEventListener('mouseout',  e=>{ if(e.target.closest(POPOVER_TRIGGER)) hideInfo(); });
 }
 window.addEventListener('scroll', hideInfo, true);
 window.addEventListener('resize', hideInfo);
@@ -2332,7 +2417,82 @@ async function loadAll(){
   for(const inv of invoices){ if(migrate(inv)) await dbPut(inv); }
   render();
 }
-function render(){ renderGreeting(); renderStats(); renderAlerts(); renderReady(); renderRecent(); renderBoard(); updateBadge(); updateChancenZaehler(); }
+/* Ganz am Anfang: weder Rechnung noch Polizze erfasst. Dann sind vier
+   Kacheln mit 0,00 € und ein leeres Board keine Information, sondern
+   nur eine leere Huelle – und der eigentliche Wert der App (Toepfe,
+   Fristen, Bilanz) bleibt unsichtbar, weil er eine Polizze braucht,
+   die als Erstes niemand von sich aus erfasst. */
+function istNeuling(){ return invoices.length === 0 && !policy; }
+
+function render(){
+  renderGreeting();
+  if(istNeuling()){
+    renderLeerstart();
+  } else {
+    versteckeLeerstart();
+    renderGewinn(); renderStats(); renderAlerts(); renderReady(); renderNachfassen(); renderRecent();
+  }
+  renderPersonChips(); renderBoard(); updateBadge(); updateChancenZaehler();
+}
+
+/* Startbildschirm fuer den ersten Tag: sagt, was zuerst zu tun ist,
+   und warum es sich lohnt. Die Polizze steht bewusst oben – sie
+   schaltet Leistungstoepfe, Fristen und Bilanz ueberhaupt erst frei. */
+function renderLeerstart(){
+  ['stats','alerts','ready','nachfassen'].forEach(id=>{
+    const e = document.getElementById(id); if(e) e.innerHTML = '';
+  });
+  const rb = document.querySelector('.recentblock');
+  if(rb) rb.hidden = true;
+  const el = document.getElementById('leerstart');
+  if(!el) return;
+  el.hidden = false;
+  el.innerHTML = `
+    <div class="ls-card">
+      <div class="ls-ic">🛡</div>
+      <h2>Womit möchtest du starten?</h2>
+      <p>Am meisten hast du von der App, wenn sie deine Versicherung kennt.
+         Dann sieht sie, welche Leistungen dir zustehen, was noch frei ist
+         und wann Fristen ablaufen.</p>
+      <button class="primary" id="lsPolizze">🛡 Polizze einlesen</button>
+      <button id="lsRechnung">🧾 Mit einer Rechnung starten</button>
+      <p class="ls-fuss">🔒 Alles bleibt auf diesem Gerät. Kein Konto, keine Übertragung.</p>
+    </div>`;
+  el.querySelector('#lsPolizze').addEventListener('click', ()=> setView('deckung'));
+  el.querySelector('#lsRechnung').addEventListener('click', ()=> openEditor(null));
+}
+function versteckeLeerstart(){
+  const el = document.getElementById('leerstart');
+  if(el){ el.hidden = true; el.innerHTML = ''; }
+  const rb = document.querySelector('.recentblock');
+  if(rb) rb.hidden = false;
+}
+
+/* ==================================================================
+   Der Nutzen in einer Zahl: was hat die App dem Nutzer eingebracht?
+   Bisher stand das als eine von vier gleich grossen Kacheln da und
+   ging unter. Es ist aber die einzige Zahl, die beantwortet, warum
+   man die App weiterfuehrt – deshalb steht sie jetzt oben und allein.
+
+   Nur bei tatsaechlich erfassten Erstattungen anzeigen: eine grosse
+   Null waere das Gegenteil einer Motivation.
+   ================================================================== */
+function renderGewinn(){
+  const el = document.getElementById('gewinn');
+  if(!el) return;
+  const gesamt = erstattungenGesamt('erstattetOegk') + erstattungenGesamt('erstattetKv');
+  if(!(gesamt > 0)){ el.innerHTML = ''; return; }
+  const jahr = new Date().getFullYear();
+  const imJahr = erstattungenImJahr(jahr,'erstattetOegk') + erstattungenImJahr(jahr,'erstattetKv');
+  const anzahl = invoices.filter(i=> erstattetGesamt(i) > 0).length;
+  el.innerHTML = `
+    <div class="gewinn">
+      <div class="gl">Zurückgeholt seit Beginn</div>
+      <div class="gn">${fmtEUR(gesamt)}</div>
+      <div class="gs">aus ${anzahl} Rechnung${anzahl===1?'':'en'}${
+        imJahr > 0 && imJahr !== gesamt ? ' · ' + fmtEUR(imJahr) + ' davon in ' + jahr : ''}</div>
+    </div>`;
+}
 
 /* Zahl auf dem App-Icon: was ist bezahlt, aber noch nirgends eingereicht. */
 function updateBadge(){
@@ -2442,6 +2602,107 @@ function renderAlerts(){
   el.querySelectorAll('.alertcard').forEach((b,i)=> b.addEventListener('click', top[i].onclick));
 }
 
+/* ==================================================================
+   NACHFASSEN
+   Die App wusste bisher, dass eine Rechnung seit Wochen bei der Kasse
+   liegt – und zeigte das brav an. Gefragt hat sie nie. Der Nutzer
+   musste von sich aus die Karte oeffnen und den erstatteten Betrag
+   eintragen, und genau das vergisst man.
+
+   Die Folge war schleichend und teuer: Die Erstattungsfelder bleiben
+   leer, und damit sind Eigenanteil, Erstattungsquote und Steuer-
+   uebersicht wertlos – also genau die Zahlen, fuer die man die App
+   ueberhaupt fuehrt.
+
+   Hier wird deshalb aktiv nachgefragt, sobald ein Vorgang lange genug
+   liegt: eine Karte auf der Uebersicht, dahinter eine Schnelleingabe
+   fuer alle betroffenen Rechnungen auf einmal.
+   ================================================================== */
+const NACHFASS_TAGE = 21;
+
+function nachfassKandidaten(){
+  return invoices.filter(inv=>{
+    if(inv.status !== 'oegk_eingereicht' && inv.status !== 'kv_eingereicht') return false;
+    /* Schon beantwortet? Dann nicht noch einmal fragen. */
+    const feld = inv.status === 'oegk_eingereicht' ? 'erstattetOegk' : 'erstattetKv';
+    if(inv[feld] != null) return false;
+    const stamp = inv.status === 'oegk_eingereicht' ? inv.submittedOegkAt : inv.submittedKvAt;
+    const tage = daysSince(stamp);
+    return tage !== null && tage >= NACHFASS_TAGE;
+  }).sort((a,b)=>{
+    const ta = daysSince(a.status === 'oegk_eingereicht' ? a.submittedOegkAt : a.submittedKvAt);
+    const tb = daysSince(b.status === 'oegk_eingereicht' ? b.submittedOegkAt : b.submittedKvAt);
+    return tb - ta;   // laengste Liegezeit zuerst
+  });
+}
+
+function renderNachfassen(){
+  const el = document.getElementById('nachfassen');
+  if(!el) return;
+  const liste = nachfassKandidaten();
+  if(!liste.length){ el.innerHTML = ''; return; }
+  const summe = liste.reduce((s,i)=> s + (Number(i.amount)||0), 0);
+  el.innerHTML = `
+    <button type="button" class="nachcard" id="nachBtn">
+      <span class="nic">💰</span>
+      <span class="ntxt"><b>Ist schon Geld zurückgekommen?</b>
+        <span>${liste.length} Rechnung${liste.length===1?'':'en'} liegt seit über
+          ${NACHFASS_TAGE} Tagen · ${fmtEUR(summe)} offen</span></span>
+      <span class="ngo">›</span>
+    </button>`;
+  el.querySelector('#nachBtn').addEventListener('click', openNachfassSheet);
+}
+
+/* Schnelleingabe: alle offenen Vorgaenge in einer Liste, ein Feld je
+   Zeile, einmal speichern. Wer nichts eintraegt, aendert nichts –
+   leere Felder bleiben leer statt als 0 gespeichert zu werden. */
+function openNachfassSheet(){
+  const liste = nachfassKandidaten();
+  if(!liste.length){ toast('Nichts offen'); return; }
+  openSheet(`
+    <div class="sheet-head"><h2>Was ist zurückgekommen?</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <p class="hint" style="margin-top:0">Trag ein, was <b>tatsächlich</b> auf dem Konto war.
+        Nur ausgefüllte Felder werden übernommen – was noch offen ist, lässt du frei.</p>
+      ${liste.map(inv=>{
+        const stelle = inv.status === 'oegk_eingereicht' ? 'ÖGK' : 'private Versicherung';
+        const stamp  = inv.status === 'oegk_eingereicht' ? inv.submittedOegkAt : inv.submittedKvAt;
+        return `<div class="nfrow">
+          <span class="nfmain">
+            <span class="nftitle">${escapeHTML(inv.title || 'Rechnung')}</span>
+            <span class="nfsub">${fmtEUR(inv.amount)} · bei ${escapeHTML(stelle)} seit ${daysSince(stamp)} Tagen</span>
+          </span>
+          <input type="number" inputmode="decimal" step="0.01" data-nf="${inv.id}"
+                 placeholder="0,00" aria-label="Erstatteter Betrag">
+        </div>`;
+      }).join('')}
+      <p class="hint">Nichts angekommen? Dann einfach schließen – die App fragt später wieder.</p>
+    </div>
+    <div class="sheet-foot"><button class="primary grow" id="nfSave">Übernehmen</button></div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelector('#nfSave').addEventListener('click', async ()=>{
+    const felder = [...sheet.querySelectorAll('[data-nf]')].filter(f=> f.value.trim() !== '');
+    if(!felder.length){ closeSheet(); return; }
+    let n = 0, fertig = 0;
+    const ids = [];
+    for(const f of felder){
+      const inv = invoices.find(i=> i.id === f.dataset.nf);
+      if(!inv) continue;
+      const wert = Number(f.value);
+      if(isNaN(wert) || wert < 0) continue;
+      inv[inv.status === 'oegk_eingereicht' ? 'erstattetOegk' : 'erstattetKv'] = wert;
+      inv.updatedAt = new Date().toISOString();
+      await dbPut(inv);
+      ids.push(inv.id); n++;
+    }
+    closeSheet(); await loadAll();
+    /* Ist damit alles erstattet, wandert der Vorgang gleich ans Ende. */
+    for(const id of ids){ if(await autoAbschluss(id)) fertig++; }
+    toast(n + ' Erstattung(en) eingetragen' + (fertig ? ' · ' + fertig + ' abgeschlossen' : ''));
+  });
+}
+
 /* Sammel-Einstieg: pro Ziel eine Karte, sobald dort mehr als ein Beleg
    fertig liegt. Bei nur einem lohnt der Sammelweg nicht – dann fuehrt
    der Weg wie gehabt ueber die Karte selbst. */
@@ -2501,11 +2762,68 @@ function revealColumn(key){
   if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
+/* ==================================================================
+   SUCHE UND PERSONENFILTER
+   Ab ein paar Dutzend Rechnungen war die Liste nur noch scrollbar –
+   eine bestimmte Rechnung von vorletztem Jahr fand man gar nicht.
+   Das traf ausgerechnet die treuesten Nutzer.
+
+   Gesucht wird ueber alles, wonach ein Mensch sucht: Bezeichnung,
+   Person, Notiz, Belegnummer und Betrag. Zahlen zusaetzlich mit
+   Komma UND Punkt, weil beides getippt wird.
+   ================================================================== */
+let sucheText = '';
+let personFilter = '';   // '' = alle
+
+function passtZurSuche(inv){
+  if(personFilter && (inv.fuerWen||'').trim() !== personFilter) return false;
+  const q = sucheText.trim().toLowerCase();
+  if(!q) return true;
+  const betrag = String(inv.amount ?? '');
+  const felder = [
+    inv.title, inv.fuerWen, inv.note, inv.rechnungsnr, inv.reference,
+    betrag, betrag.replace('.', ','),
+    fmtDate(inv.date), (inv.date||''),
+    wegOf(inv).label, colByKey[inv.status] ? colByKey[inv.status].short : '',
+  ];
+  return felder.some(f=> String(f||'').toLowerCase().includes(q));
+}
+
+function personen(){
+  return [...new Set(invoices.map(i=> (i.fuerWen||'').trim()).filter(Boolean))].sort();
+}
+
+function renderPersonChips(){
+  const el = document.getElementById('personchips');
+  if(!el) return;
+  const namen = personen();
+  /* Bei hoechstens einer Person gibt es nichts zu filtern. */
+  if(namen.length < 2){ el.innerHTML = ''; personFilter = ''; return; }
+  el.innerHTML = [''].concat(namen).map(n=>`
+    <button type="button" class="pchip" data-person="${escapeHTML(n)}"
+            aria-pressed="${String(personFilter === n)}">${n ? '👤 ' + escapeHTML(n) : 'Alle'}</button>`).join('');
+  el.querySelectorAll('[data-person]').forEach(b=> b.addEventListener('click', ()=>{
+    personFilter = b.dataset.person;
+    renderPersonChips(); renderBoard();
+  }));
+}
+
 function renderBoard(){
   const board = document.getElementById('board');
   board.innerHTML = '';
+  const gefiltert = invoices.filter(passtZurSuche);
+  const filterAktiv = !!(sucheText.trim() || personFilter);
+
+  /* Bei aktiver Suche ohne Treffer waeren fuenf leere Spalten die
+     schlechteste Antwort – dann lieber klar sagen, dass nichts passt. */
+  if(filterAktiv && !gefiltert.length){
+    board.innerHTML = `<div class="suchleer">Keine Rechnung gefunden.<br>
+      Andere Schreibweise probieren oder Filter zurücksetzen.</div>`;
+    return;
+  }
+
   COLUMNS.forEach(col=>{
-    const items = invoices.filter(i=> i.status === col.key)
+    const items = gefiltert.filter(i=> i.status === col.key)
                           .sort((a,b)=> (b.updatedAt||'').localeCompare(a.updatedAt||''));
     const leer = items.length === 0;
     const kompakt = leer;   // leere Schritte nur schmal andeuten statt grosser Box
@@ -3165,6 +3483,7 @@ function openWegeSheet(highlight){
 document.getElementById('mWege').addEventListener('click', ()=> openWegeSheet(null));
 document.getElementById('mVertraege').addEventListener('click', ()=> setView('vertraege'));
 document.getElementById('mChancen').addEventListener('click', ()=> setView('chancen'));
+document.getElementById('mPersonen').addEventListener('click', openPersonenSheet);
 document.getElementById('mMakler').addEventListener('click', openMaklerSheet);
 document.getElementById('mExport').addEventListener('click', exportBackup);
 document.getElementById('mImport').addEventListener('click', ()=> document.getElementById('importFile').click());
@@ -3175,6 +3494,12 @@ document.querySelectorAll('#view-mehr [data-info]').forEach(b=>{
   });
 });
 document.getElementById('btnRecentAll').addEventListener('click', ()=> setView('rechnungen'));
+
+/* Suchfeld: filtert live, ohne Absenden. */
+document.getElementById('suche').addEventListener('input', e=>{
+  sucheText = e.target.value;
+  renderBoard();
+});
 
 /* ---------- Editor-Sheet ---------- */
 document.getElementById('btnAdd').addEventListener('click', ()=> openEditor(null));
@@ -3202,7 +3527,13 @@ function openEditor(id, presetStatus){
           <button class="info-btn" data-info="docs" aria-label="Welche Dokumente brauche ich?">i</button>
           <button class="info-btn" data-info="qr" aria-label="QR-Code auf der Rechnung">QR</button>
         </label>
-        <p class="hint" style="margin:0 0 8px">Foto oder PDF zuerst – Bezeichnung, Betrag und Datum werden daraus vorausgefüllt.</p>
+        <p class="hint" style="margin:0 0 6px">Foto oder PDF zuerst – Bezeichnung, Betrag und Datum werden daraus vorausgefüllt.</p>
+        <!-- Die Zusage steht dort, wo sie zaehlt: im Moment, in dem der
+             Nutzer eine Arztrechnung fotografiert. Sie im Untermenue zu
+             verstecken, verschenkt das einzige echte Unterscheidungs-
+             merkmal dieser App. -->
+        <p class="datenschutz-zusage">🔒 Foto und Texterkennung bleiben auf diesem Gerät.
+          <button type="button" class="linklike" data-info="privacy">Warum das sicher ist</button></p>
         <div class="filepick">
           <button type="button" id="btnCam"><span class="ic">📷</span>Foto aufnehmen</button>
           <button type="button" id="btnFile"><span class="ic">📄</span>Datei wählen</button>
@@ -4668,6 +4999,83 @@ function openSimSheet(){
   };
   sheet.querySelector('#simSb').addEventListener('input', upd);
   sheet.querySelector('#simQ').addEventListener('input', upd);
+  zeichne();
+}
+
+/* ==================================================================
+   PERSONEN-UEBERSICHT
+   "Für wen" war bisher nur ein Textfeld auf der Rechnung. Fuer eine
+   Familie ist aber genau das die Frage, die keine andere Ansicht
+   beantwortet: Was ist dieses Jahr fuer welches Kind angefallen, und
+   wie viel davon kam zurueck?
+
+   Jahresbezogen, weil Leistungstoepfe und Steuerveranlagung ebenfalls
+   am Jahr haengen. Rechnungen ohne Angabe laufen unter "ohne Zuordnung"
+   statt unterzugehen.
+   ================================================================== */
+function personenDaten(jahr){
+  const rel = invoices.filter(i=> (i.date||'').slice(0,4) === String(jahr));
+  const gruppen = new Map();
+  rel.forEach(inv=>{
+    const name = (inv.fuerWen||'').trim() || '— ohne Zuordnung';
+    if(!gruppen.has(name)) gruppen.set(name, { name, n:0, betrag:0, zurueck:0, offen:0 });
+    const g = gruppen.get(name);
+    g.n++;
+    g.betrag  += Number(inv.amount) || 0;
+    g.zurueck += erstattetGesamt(inv);
+    if(inv.erstattetOegk == null && inv.erstattetKv == null) g.offen++;
+  });
+  return [...gruppen.values()]
+    .map(g=> Object.assign(g, { selbst: Math.max(0, g.betrag - g.zurueck) }))
+    .sort((a,b)=> b.betrag - a.betrag);
+}
+
+function openPersonenSheet(){
+  const jahre = steuerJahre();
+  if(!jahre.length){ toast('Noch keine Rechnungen mit Datum erfasst'); return; }
+  let jahr = jahre[0];
+
+  const zeichne = ()=>{
+    const daten = personenDaten(jahr);
+    const ges = daten.reduce((s,g)=> ({ betrag:s.betrag+g.betrag, zurueck:s.zurueck+g.zurueck,
+                                        selbst:s.selbst+g.selbst }), { betrag:0, zurueck:0, selbst:0 });
+    sheet.querySelector('#peBody').innerHTML = `
+      <div class="bzahlen">
+        <div><span class="bl">Rechnungen ${jahr}</span><b>${fmtEUR(ges.betrag)}</b></div>
+        <div><span class="bl">erstattet</span><b class="be">${fmtEUR(ges.zurueck)}</b></div>
+      </div>
+      <div class="grouplabel">Je Person</div>
+      ${daten.map(g=>`
+        <button type="button" class="lcard" data-person="${escapeHTML(g.name.startsWith('—') ? '' : g.name)}">
+          <div class="lhead"><span class="lic">👤</span><span class="lname">${escapeHTML(g.name)}</span>
+            <span class="lbadge" style="background:#e2e8f0;color:#475569">${g.n}×</span></div>
+          <div class="lzahlen">
+            <span><b>${fmtEUR(g.betrag)}</b> Kosten</span>
+            <span><b>${fmtEUR(g.zurueck)}</b> zurück</span>
+          </div>
+          <div class="lmeta">selbst getragen ${fmtEUR(g.selbst)}${
+            g.offen ? ' · ' + g.offen + ' ohne erfasste Erstattung' : ''}</div>
+        </button>`).join('')}
+      <p class="hint">Tippe auf eine Person, um nur deren Rechnungen zu sehen.</p>`;
+    sheet.querySelectorAll('[data-person]').forEach(b=> b.addEventListener('click', ()=>{
+      personFilter = b.dataset.person;
+      sucheText = '';
+      const sf = document.getElementById('suche'); if(sf) sf.value = '';
+      closeSheet(); setView('rechnungen');
+      renderPersonChips(); renderBoard();
+    }));
+  };
+
+  openSheet(`
+    <div class="sheet-head"><h2>Kosten je Person</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <div class="field"><label>Jahr</label>
+        <select id="peJahr">${jahre.map(j=> `<option value="${j}">${j}</option>`).join('')}</select></div>
+      <div id="peBody"></div>
+    </div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelector('#peJahr').addEventListener('change', e=>{ jahr = e.target.value; zeichne(); });
   zeichne();
 }
 

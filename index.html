@@ -488,6 +488,54 @@ button:disabled{ opacity:.5; }
 .qv b{ display:block; font-size:14px; font-weight:800; }
 .qv span{ font-size:10.5px; color:#94a3b8; }
 
+/* Verträge */
+#view-vertraege{ padding:10px calc(12px + var(--sar)) 96px calc(12px + var(--sal)); }
+.vcard{
+  display:block; width:100%; text-align:left; background:#fff; border:1px solid var(--line);
+  border-radius:12px; padding:13px 14px; margin-bottom:10px; min-height:0;
+}
+.vcard.dringend{ border-color:#fdba74; background:#fff7ed; }
+.vhead{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.vpraemie{ font-size:12.5px; font-weight:800; color:var(--sub); white-space:nowrap; }
+.vfrist{
+  margin-top:8px; font-size:12.5px; color:#334155; background:#f1f5f9;
+  border-radius:8px; padding:7px 10px;
+}
+.vfrist.an{ background:#fed7aa; color:#7c2d12; font-weight:700; }
+
+/* Steuer und Simulation */
+.steuersumme{
+  display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+  background:#0f172a; color:#fff; border-radius:10px; padding:13px 15px; margin-top:10px;
+}
+.steuersumme span{ font-size:13px; color:#cbd5e1; }
+.steuersumme b{ font-size:20px; font-weight:800; }
+.simtab{ width:100%; border-collapse:collapse; font-size:12.5px; margin-top:6px; }
+.simtab th{ text-align:left; color:var(--sub); font-size:11px; padding:6px 4px; border-bottom:1px solid var(--line); }
+.simtab td{ padding:7px 4px; border-bottom:1px solid #f1f5f9; }
+.simtab .plus{ color:#15803d; font-weight:700; }
+.simtab .minus{ color:#b91c1c; font-weight:700; }
+
+/* Druckbereich – im Normalbetrieb unsichtbar */
+#printarea{ display:none; }
+body.printing #printarea{ display:block; }
+@media print{
+  body > *:not(#printarea){ display:none !important; }
+  body{ background:#fff; }
+  #printarea{ display:block; padding:0; color:#000; font-size:11pt; }
+  .p-titel{ font-size:16pt; margin:0 0 4mm; }
+  .p-h2{ font-size:12pt; margin:6mm 0 2mm; border-bottom:1px solid #000; padding-bottom:1mm; }
+  .p-tab{ width:100%; border-collapse:collapse; margin-bottom:3mm; }
+  .p-tab th, .p-tab td{ border:1px solid #999; padding:1.6mm 2mm; text-align:left; vertical-align:top; font-size:10pt; }
+  .p-tab th{ background:#eee; width:38%; }
+  .p-summe td{ font-weight:bold; background:#eee; }
+  .p-doc{ page-break-inside:avoid; margin-bottom:5mm; }
+  .p-dochead{ font-size:9pt; margin:0 0 1mm; font-weight:bold; }
+  .p-img{ max-width:100%; max-height:150mm; border:1px solid #999; }
+  .p-hinweis{ font-size:9pt; color:#333; }
+  .p-fuss{ margin-top:6mm; font-size:8pt; color:#555; border-top:1px solid #999; padding-top:2mm; }
+}
+
 /* Fristenwarnung auf der Karte */
 .card .frist-tag{ font-size:11px; border-radius:6px; padding:3px 7px; font-weight:800; }
 .card .frist-tag.knapp{ background:#fef3c7; color:#92400e; }
@@ -568,6 +616,7 @@ button:disabled{ opacity:.5; }
 <nav class="mainnav" id="mainnav" role="tablist">
   <button class="mainbtn" data-view="rechnungen" role="tab" aria-selected="true">🧾 Rechnungen</button>
   <button class="mainbtn" data-view="deckung"    role="tab" aria-selected="false">🛡 Deckung</button>
+  <button class="mainbtn" data-view="vertraege"  role="tab" aria-selected="false">📄 Verträge</button>
 </nav>
 
 <section id="view-rechnungen">
@@ -579,6 +628,12 @@ button:disabled{ opacity:.5; }
 <section id="view-deckung" hidden>
   <div id="deckung"></div>
 </section>
+
+<section id="view-vertraege" hidden>
+  <div id="vertraege"></div>
+</section>
+
+<div id="printarea" aria-hidden="true"></div>
 
 <div class="actionbar">
   <span class="grow"></span>
@@ -1182,49 +1237,203 @@ async function analyzePDF(file){
   }
   return parseInvoiceText(allLines.join('\n'), allLines);
 }
+/* ==================================================================
+   Bildvorverarbeitung vor der OCR.
+   Handyfotos sind schief belichtet, zu gross und farbig – Tesseract
+   arbeitet auf sauberem Graustufenbild mit gestrecktem Kontrast
+   deutlich besser. Kostet Sekundenbruchteile, spart Fehlerkennungen.
+   ================================================================== */
+async function bildAufbereiten(file){
+  try{
+    const bmp = await createImageBitmap(file);
+    /* Zielgroesse: lange Kante ~1800px. Kleinere Bilder werden hochskaliert
+       (OCR braucht Mindesthoehe pro Zeichen), riesige heruntergerechnet. */
+    const lang  = Math.max(bmp.width, bmp.height);
+    const scale = Math.min(2.5, Math.max(0.4, 1800 / lang));
+    const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently:true });
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bmp, 0, 0, w, h);
+    if(bmp.close) bmp.close();
+
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+
+    /* 1. Graustufen, dabei Histogramm fuer die Kontrastspreizung sammeln */
+    const hist = new Uint32Array(256);
+    for(let i = 0; i < d.length; i += 4){
+      const g = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114) | 0;
+      d[i] = d[i+1] = d[i+2] = g;
+      hist[g]++;
+    }
+    /* 2. Perzentile statt Min/Max – robust gegen einzelne dunkle Pixel */
+    const gesamt = w * h;
+    let lo = 0, hi = 255, acc = 0;
+    for(let i = 0; i < 256; i++){ acc += hist[i]; if(acc > gesamt * 0.02){ lo = i; break; } }
+    acc = 0;
+    for(let i = 255; i >= 0; i--){ acc += hist[i]; if(acc > gesamt * 0.02){ hi = i; break; } }
+    const spanne = Math.max(1, hi - lo);
+
+    /* 3. Kontrast strecken und leicht anheben */
+    for(let i = 0; i < d.length; i += 4){
+      let v = (d[i] - lo) / spanne * 255;
+      v = v < 0 ? 0 : v > 255 ? 255 : v;
+      v = v < 128 ? v * 0.85 : 255 - (255 - v) * 0.85;   // Schwarz dunkler, Weiss heller
+      d[i] = d[i+1] = d[i+2] = v | 0;
+    }
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }catch(err){
+    console.warn('Vorverarbeitung übersprungen:', err);
+    return null;
+  }
+}
+
 async function analyzeImage(file){
-  const worker = await getTesseractWorker();
-  const { data } = await worker.recognize(await fileToDataURL(file));
+  const worker  = await getTesseractWorker();
+  const quelle  = (await bildAufbereiten(file)) || (await fileToDataURL(file));
+  const { data } = await worker.recognize(quelle);
   const text = data.text || '';
   return parseInvoiceText(text, text.split('\n'));
 }
 function normalizeAmount(raw){
-  raw = raw.trim();
+  raw = String(raw).trim();
   if(raw.includes(',')) raw = raw.replace(/\./g,'').replace(',', '.');
   else if(/\.\d{1,2}$/.test(raw)){ /* bereits Dezimalpunkt */ }
   else raw = raw.replace(/\./g,'');
   return parseFloat(raw);
 }
-function extractAmount(text){
-  const patterns = [
-    /(?:Gesamtbetrag|Rechnungsbetrag|Endbetrag|Zahlbetrag|Zu\s*zahlen|Summe)[^\d€]{0,20}([\d.,]+)\s*(?:€|EUR)?/i,
-    /€\s*([\d.,]+)/, /([\d.,]+)\s*EUR/i, /([\d.,]+)\s*€/,
-  ];
-  for(const re of patterns){
-    const m = text.match(re);
-    if(m){ const n = normalizeAmount(m[1]); if(!isNaN(n) && n > 0 && n < 100000) return n; }
+
+/* ==================================================================
+   BETRAG – gewichtet statt "erster Treffer".
+   Der erste Euro-Betrag auf einer Honorarnote ist fast nie die Summe,
+   sondern ein Einzelposten. Deshalb werden alle Kandidaten gesammelt
+   und nach Umfeld bewertet: Summenwoerter zaehlen stark positiv,
+   Zwischensummen und Steuerzeilen negativ, unten im Dokument leicht
+   positiv. Erst dann wird ausgewaehlt.
+   ================================================================== */
+const AMOUNT_RE = /(?:€|EUR)\s*(\d{1,3}(?:[.\s]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)|(\d{1,3}(?:[.\s]\d{3})*(?:[.,]\d{1,2})?|\d+[.,]\d{1,2})\s*(?:€|EUR)/gi;
+function extractAmount(text, lines){
+  const zeilen = (lines && lines.length ? lines : String(text||'').split(/\r?\n/)).map(z=> String(z||''));
+  const kandidaten = [];
+
+  zeilen.forEach((z, i)=>{
+    const l = z.toLowerCase();
+    let score = 0;
+    if(/gesamtbetrag|rechnungsbetrag|endbetrag|zahlbetrag|zu\s*zahlen|gesamtsumme|honorar\s*gesamt|rechnungssumme|zu\s*bezahlen|offener\s*betrag/.test(l)) score += 10;
+    else if(/\bsumme\b|\bgesamt\b|\btotal\b|\bbetrag\b/.test(l))                                     score += 5;
+    if(/zwischensumme|netto|mwst|ust\b|umsatzsteuer|steuer|rabatt|skonto|anzahlung|guthaben|übertrag/.test(l)) score -= 8;
+    if(/rezeptgebühr|selbstbehalt|einzelpreis|stück|packung/.test(l))                                 score -= 4;
+    if(/erstatt|rückersatz|refund|kassenanteil/.test(l))                                              score -= 6;
+    score += Math.round((i / Math.max(1, zeilen.length)) * 3);   // weiter unten = eher Summe
+
+    let m;
+    AMOUNT_RE.lastIndex = 0;
+    while((m = AMOUNT_RE.exec(z)) !== null){
+      const n = normalizeAmount(m[1] || m[2]);
+      if(isNaN(n) || n <= 0 || n >= 100000) continue;
+      kandidaten.push({ n, score });
+    }
+  });
+
+  if(!kandidaten.length) return null;
+  const maxScore = Math.max(...kandidaten.map(k=> k.score));
+  /* Bei Gleichstand der groesste Betrag – die Summe ist nie kleiner als ihre Posten. */
+  return kandidaten.filter(k=> k.score === maxScore).reduce((a,b)=> b.n > a.n ? b : a).n;
+}
+
+/* ==================================================================
+   DATUM – Label schlaegt Position, Plausibilitaet schlaegt beides.
+   Ein Beleg enthaelt Druckdatum, Faelligkeit, Geburtsdatum und
+   Leistungsdatum. Gesucht ist das Leistungsdatum.
+   ================================================================== */
+const MONATE = { jan:1,feb:2,mär:3,mae:3,mar:3,apr:4,mai:5,jun:6,jul:7,aug:8,sep:9,okt:10,nov:11,dez:12 };
+function alsISO(d, m, y){
+  if(String(y).length === 2) y = (Number(y) > 70 ? '19' : '20') + y;
+  const dd = Number(d), mm = Number(m), yy = Number(y);
+  if(mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+  const iso = `${String(yy).padStart(4,'0')}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+  const jetzt = new Date(), jahr = jetzt.getFullYear();
+  if(yy < jahr - 8 || yy > jahr + 1) return null;                       // unplausibel
+  if(new Date(iso) > new Date(Date.now() + 2*86400000)) return null;    // Zukunft
+  return iso;
+}
+function datumKandidaten(zeile){
+  const out = [];
+  let m;
+  const re1 = /(\d{1,2})\s*[.\/-]\s*(\d{1,2})\s*[.\/-]\s*(\d{2,4})/g;
+  while((m = re1.exec(zeile)) !== null){ const iso = alsISO(m[1],m[2],m[3]); if(iso) out.push(iso); }
+  const re2 = /(\d{4})-(\d{2})-(\d{2})/g;
+  while((m = re2.exec(zeile)) !== null){ const iso = alsISO(m[3],m[2],m[1]); if(iso) out.push(iso); }
+  const re3 = /(\d{1,2})\.?\s*([A-Za-zä]{3,9})\.?\s*(\d{4})/g;
+  while((m = re3.exec(zeile)) !== null){
+    const mo = MONATE[m[2].slice(0,3).toLowerCase()];
+    if(mo){ const iso = alsISO(m[1], mo, m[3]); if(iso) out.push(iso); }
   }
-  return null;
+  return out;
 }
-function extractDate(text){
-  const m = text.match(/(\d{1,2})[.\/](\d{1,2})[.\/](\d{2,4})/);
-  if(!m) return null;
-  let [, d, mo, y] = m;
-  if(y.length === 2) y = '20' + y;
-  const mm = mo.padStart(2,'0'), dd = d.padStart(2,'0');
-  if(Number(mm) < 1 || Number(mm) > 12 || Number(dd) < 1 || Number(dd) > 31) return null;
-  return `${y.padStart(4,'0')}-${mm}-${dd}`;
+function extractDate(text, lines){
+  const zeilen = (lines && lines.length ? lines : String(text||'').split(/\r?\n/));
+  const treffer = [];
+  zeilen.forEach(z=>{
+    const l = String(z||'').toLowerCase();
+    let score = 0;
+    if(/leistungsdatum|behandlungsdatum|datum der (leistung|behandlung)|leistungszeitraum|therapiedatum/.test(l)) score += 10;
+    else if(/rechnungsdatum|rechnung vom|beleg vom|ausstellungsdatum/.test(l)) score += 6;
+    else if(/\bdatum\b|\bam\b/.test(l)) score += 2;
+    if(/geburt|geb\.|geboren|gültig bis|fällig|zahlbar bis|valuta|druckdatum/.test(l)) score -= 8;
+    datumKandidaten(String(z||'')).forEach(iso=> treffer.push({ iso, score }));
+  });
+  if(!treffer.length) return null;
+  const max = Math.max(...treffer.map(t=> t.score));
+  /* Bei Gleichstand das aelteste – das Leistungsdatum liegt vor dem Druckdatum. */
+  return treffer.filter(t=> t.score === max).map(t=> t.iso).sort()[0];
 }
+
+/* ==================================================================
+   AUSSTELLER – Zeilen bewerten statt die erste nehmen.
+   ================================================================== */
 function extractIssuer(lines){
-  const nonEmpty = lines.map(l=> l.trim()).filter(Boolean);
-  const docLine = nonEmpty.find(l=> /^(Dr\.|Prim\.|Univ\.-Prof\.|Mag\.|Doz\.|OA\b)/i.test(l));
-  if(docLine) return docLine.slice(0,80);
-  const apoLine = nonEmpty.find(l=> /apotheke/i.test(l));
-  if(apoLine) return apoLine.slice(0,80);
-  return (nonEmpty[0] || '').slice(0,80);
+  const zeilen = (lines||[]).map(l=> String(l||'').trim()).filter(Boolean).slice(0,25);
+  let best = null, bestScore = -99;
+  zeilen.forEach((z, i)=>{
+    if(z.length < 4 || z.length > 90) return;
+    let score = 0;
+    if(/^(Dr\.|DDr\.|Dipl|Mag\.|Prim\.|Univ|Doz\.|OA\b|MR\b|Prof\.)/i.test(z)) score += 10;
+    if(/apotheke|ordination|zahnarzt|arztpraxis|institut|labor|ambulatorium|therapiezentrum|physiotherapie/i.test(z)) score += 8;
+    if(/\b(fach)?arzt|ärztin|facharzt für|allgemeinmedizin|zahnmedizin/i.test(z)) score += 5;
+    if(/gmbh|og\b|kg\b|e\.u\.|verein/i.test(z)) score += 2;
+    /* Was sicher nicht der Aussteller ist */
+    if(/honorarnote|rechnung|beleg|seite \d|uid|atu\d|iban|bic|tel\.|telefon|e-?mail|www\.|@|\d{4}\s+\w+straße|steuernummer|kundennummer/i.test(z)) score -= 10;
+    if(/^\d/.test(z)) score -= 4;
+    score += Math.max(0, 4 - i);                       // oben im Dokument bevorzugt
+    if(score > bestScore){ bestScore = score; best = z; }
+  });
+  return bestScore > 0 ? best.replace(/\s{2,}/g,' ').slice(0,80) : (zeilen[0]||'').slice(0,80);
 }
+
+function extractRechnungsnr(text){
+  const m = String(text||'').match(/(?:Rechnungs-?\s?(?:nummer|nr)\.?|Beleg-?\s?Nr\.?|Honorarnote\s*Nr\.?|Faktura\s*Nr\.?)\s*:?\s*([A-Za-z0-9][A-Za-z0-9\/\-.]{1,24})/i);
+  return m ? m[1].replace(/[.\-]$/,'') : '';
+}
+function extractIBAN(text){
+  const m = String(text||'').replace(/\s+/g,' ')
+    .match(/\b([A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){2,7}(?:\s?[A-Z0-9]{1,4})?)\b/);
+  return m ? m[1].replace(/\s+/g,'') : '';
+}
+
 function parseInvoiceText(text, lines){
-  return { amount: extractAmount(text), date: extractDate(text), issuer: extractIssuer(lines), rawText:text };
+  return {
+    amount:      extractAmount(text, lines),
+    date:        extractDate(text, lines),
+    issuer:      extractIssuer(lines),
+    rechnungsnr: extractRechnungsnr(text),
+    iban:        extractIBAN(text),
+    rawText:     text,
+  };
 }
 /* ==================================================================
    QR-Code auf dem Beleg ("Zahlen mit Code", EPC069-12 / Stuzza).
@@ -1585,6 +1794,7 @@ async function analyzeAndFill(id, file){
   if(result.issuer && current.title === defaultTitle){ current.title = result.issuer; changed = true; }
   if(result.reference && !current.reference){ current.reference = result.reference; changed = true; }
   if(result.iban && !current.iban){ current.iban = result.iban; changed = true; }
+  if(result.rechnungsnr && !current.rechnungsnr){ current.rechnungsnr = result.rechnungsnr; changed = true; }
   if(changed){
     current.needsReview = true;
     current.updatedAt = new Date().toISOString();
@@ -2025,7 +2235,8 @@ function openEditor(id, presetStatus){
       ${inv ? renderHistory(inv) : ''}
     </div>
     <div class="sheet-foot">
-      ${inv ? `<button class="danger" id="btnDelete">Löschen</button>` : ''}
+      ${inv ? `<button class="danger" id="btnDelete">Löschen</button>
+               <button id="btnAkte" title="Vorgangsakte">📑</button>` : ''}
       <button class="primary grow" id="btnSave">Speichern</button>
     </div>`);
 
@@ -2075,6 +2286,8 @@ function openEditor(id, presetStatus){
 
   sheet.querySelector('#btnSave').addEventListener('click', ()=> saveEditor(id));
   if(inv) sheet.querySelector('#btnDelete').addEventListener('click', ()=> deleteInvoice(id));
+  const ak = sheet.querySelector('#btnAkte');
+  if(ak) ak.addEventListener('click', ()=>{ closeSheet(); vorgangsakte(id); });
 }
 
 /* ---------- Dokumentenliste im Editor ---------- */
@@ -2167,7 +2380,7 @@ async function setPendingFile(file){
     if(a && result.amount != null && (!a.value || result.fromQR)) a.value = result.amount;
     if(d && result.date) d.value = result.date;
     if(t && result.issuer && (!t.value || result.fromQR)) t.value = result.issuer;
-    pendingRef  = result.reference || '';
+    pendingRef  = result.reference || result.rechnungsnr || '';
     pendingIban = result.iban || '';
     const rw = document.getElementById('refWrap');
     if(rw) rw.innerHTML = pendingRef ? `<div class="filechip"><span>🔖</span><span class="nm">Referenz: ${escapeHTML(pendingRef)}</span></div>` : '';
@@ -2378,7 +2591,9 @@ let usage = [];         // Verbrauchseintraege
 
 async function loadDeckung(){
   const pols = await stAll('policies');
-  policy     = pols[0] || null;
+  /* Der Store haelt jetzt alle Sparten – fuer die Deckung zaehlt die
+     Krankenversicherung. Altbestand ohne art gilt als solche. */
+  policy = pols.find(p=> (p.art || 'kranken') === 'kranken') || null;
   leistungen = policy ? (policy.leistungen || []) : [];
   usage      = await stAll('usage');
   renderDeckung();
@@ -2402,7 +2617,7 @@ function renderDeckung(){
     el.querySelector('#polUp').addEventListener('click', ()=> fi.click());
     fi.addEventListener('change', async ()=>{ if(fi.files[0]) await polizzeEinlesen(fi.files[0]); });
     el.querySelector('#polManuell').addEventListener('click', async ()=>{
-      await stPut('policies', { id: uid(), versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[] });
+      await stPut('policies', { id: uid(), art:'kranken', versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[], praemien:[] });
       await loadDeckung();
     });
     return;
@@ -2429,6 +2644,12 @@ function renderDeckung(){
       </div>` :
       leistungen.map(l=> leistungKarte(l)).join('')}
 
+    <div class="grouplabel">Auswertungen</div>
+    <div class="statuslist">
+      <button type="button" id="btnSteuer" style="--sc:#16a34a;--sbg:#f0fdf4">🧾 Steuer-Übersicht: selbst getragene Kosten</button>
+      <button type="button" id="btnSim"    style="--sc:#7c3aed;--sbg:#f5f3ff">🔀 Was wäre bei anderem Selbstbehalt?</button>
+    </div>
+
     <p class="disclaimer">⚠ Diese Übersicht ist eine Hilfe zur Selbstkontrolle, keine verbindliche
       Auskunft. Maßgeblich sind Polizze und Versicherungsbedingungen. Frag im Zweifel bei deinem
       Versicherer nach, bevor du eine Leistung in Anspruch nimmst.</p>`;
@@ -2436,6 +2657,8 @@ function renderDeckung(){
   el.querySelector('#polEdit').addEventListener('click', openPolicySheet);
   const pb = el.querySelector('#praemBtn');
   if(pb) pb.addEventListener('click', openPraemienSheet);
+  const bs = el.querySelector('#btnSteuer'); if(bs) bs.addEventListener('click', openSteuerSheet);
+  const bi = el.querySelector('#btnSim');    if(bi) bi.addEventListener('click', openSimSheet);
   const kb = el.querySelector('#katalogBtn');
   if(kb) kb.addEventListener('click', openKatalogSheet);
   el.querySelectorAll('[data-leistung]').forEach(b=>
@@ -2638,7 +2861,7 @@ function zeigePolizzeVorschlaege(vorschlaege, meta){
 
   sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
   const speichern = async (auswahl)=>{
-    const p = policy || { id: uid(), versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[] };
+    const p = policy || { id: uid(), art:'kranken', versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[], praemien:[] };
     if(meta.versicherer && !p.versicherer) p.versicherer = meta.versicherer;
     if(meta.beginn && !p.beginn)           p.beginn = meta.beginn;
     if(meta.doc)  p.docs = (p.docs||[]).concat([meta.doc]);
@@ -2734,7 +2957,7 @@ function openLeistungSheet(id, vorlage){
       zeitraum: sheet.querySelector('#l-zeit').value,
       notiz: sheet.querySelector('#l-notiz').value,
     };
-    const p = policy || { id: uid(), versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[] };
+    const p = policy || { id: uid(), art:'kranken', versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[], praemien:[] };
     p.leistungen = (p.leistungen||[]).filter(x=> x.id !== neu.id).concat([neu]);
     await stPut('policies', p);
     closeSheet(); await loadDeckung(); toast('Gespeichert');
@@ -2801,7 +3024,7 @@ function openVerbrauchSheet(l){
 
 /* ---------- Praemien als Zeitreihe pflegen ---------- */
 function openPraemienSheet(){
-  const p = policy || { id: uid(), versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[], praemien:[] };
+  const p = policy || { id: uid(), art:'kranken', versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[], praemien:[] };
   const liste = (p.praemien||[]).slice().sort((a,b)=> b.ab.localeCompare(a.ab));
   openSheet(`
     <div class="sheet-head"><h2>Prämien</h2>
@@ -2862,7 +3085,7 @@ function openPraemienSheet(){
 }
 
 function openPolicySheet(){
-  const p = policy || { id: uid(), versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[] };
+  const p = policy || { id: uid(), art:'kranken', versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[], praemien:[] };
   openSheet(`
     <div class="sheet-head"><h2>Polizze</h2>
       <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
@@ -2895,17 +3118,359 @@ function openPolicySheet(){
   });
 }
 
+/* ==================================================================
+   DRUCK-INFRASTRUKTUR
+   Kein PDF-Generator im Bundle: Chrome auf Android bietet im Druck-
+   dialog "Als PDF speichern". Das spart eine 300-KB-Bibliothek und
+   liefert ein PDF, das der Nutzer selbst benennt und ablegt.
+   ================================================================== */
+function drucke(html, titel){
+  const ziel = document.getElementById('printarea');
+  ziel.innerHTML = `<h1 class="p-titel">${escapeHTML(titel)}</h1>` + html +
+    `<p class="p-fuss">Erstellt am ${fmtDateTime(new Date().toISOString())} · Rechnungs-Tracker</p>`;
+  document.body.classList.add('printing');
+  const aufraeumen = ()=>{
+    document.body.classList.remove('printing');
+    ziel.innerHTML = '';
+    window.removeEventListener('afterprint', aufraeumen);
+  };
+  window.addEventListener('afterprint', aufraeumen);
+  setTimeout(()=> window.print(), 120);
+  setTimeout(aufraeumen, 60000);   // Fallback, falls afterprint ausbleibt
+}
+function csvDownload(zeilen, name){
+  const esc = v => '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
+  const txt = '﻿' + zeilen.map(r=> r.map(esc).join(';')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([txt], { type:'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 20000);
+}
+
+/* ---------- Vorgangsakte: alles zu einer Rechnung auf einem Blatt ---------- */
+function vorgangsakte(id){
+  const inv = invoices.find(i=> i.id === id);
+  if(!inv) return;
+  const w = wegOf(inv);
+  const selbst = (Number(inv.amount)||0) - erstattetGesamt(inv);
+  const zeile = (k,v)=> `<tr><th>${escapeHTML(k)}</th><td>${v}</td></tr>`;
+
+  const html = `
+    <table class="p-tab">
+      ${zeile('Bezeichnung', escapeHTML(inv.title||'–'))}
+      ${zeile('Belegart', w.label)}
+      ${zeile('Leistungsdatum', fmtDate(inv.date))}
+      ${zeile('Rechnungsbetrag', fmtEUR(inv.amount))}
+      ${inv.rechnungsnr ? zeile('Rechnungsnummer', escapeHTML(inv.rechnungsnr)) : ''}
+      ${inv.reference ? zeile('Zahlungsreferenz', escapeHTML(inv.reference)) : ''}
+      ${zeile('Aktueller Stand', escapeHTML(colByKey[inv.status].title))}
+      ${inv.submittedOegkAt ? zeile('Bei ÖGK eingereicht am', fmtDateTime(inv.submittedOegkAt)) : ''}
+      ${inv.submittedKvAt   ? zeile('Bei privater KV eingereicht am', fmtDateTime(inv.submittedKvAt)) : ''}
+      ${zeile('Von der ÖGK erstattet', inv.erstattetOegk != null ? fmtEUR(inv.erstattetOegk) : 'nicht erfasst')}
+      ${zeile('Von der privaten KV erstattet', inv.erstattetKv != null ? fmtEUR(inv.erstattetKv) : 'nicht erfasst')}
+      ${zeile('Selbst getragen', fmtEUR(selbst))}
+      ${inv.ablehnung ? zeile('Kürzung / Ablehnung', escapeHTML(inv.ablehnung)) : ''}
+      ${inv.note ? zeile('Notiz', escapeHTML(inv.note)) : ''}
+    </table>
+
+    <h2 class="p-h2">Verlauf</h2>
+    <table class="p-tab">
+      <tr><th>Zeitpunkt</th><th>Station</th></tr>
+      ${(inv.history||[]).map(h=> `<tr><td>${fmtDateTime(h.at)}</td><td>${escapeHTML(h.label)}</td></tr>`).join('')
+        || '<tr><td colspan="2">Kein Verlauf erfasst</td></tr>'}
+    </table>
+
+    <h2 class="p-h2">Beigefügte Dokumente (${(inv.docs||[]).length})</h2>
+    ${(inv.docs||[]).length ? (inv.docs||[]).map(d=>`
+      <div class="p-doc">
+        <p class="p-dochead">${DOCKINDS[d.kind] ? DOCKINDS[d.kind].label : 'Dokument'} —
+           ${escapeHTML(d.name)} · aufgenommen ${fmtDateTime(d.addedAt)}</p>
+        ${String(d.type||'').startsWith('image/')
+          ? `<img class="p-img" src="${d.data}" alt="">`
+          : '<p class="p-hinweis">PDF-Anhang – liegt separat in der App und ist hier nicht abgebildet.</p>'}
+      </div>`).join('')
+      : '<p class="p-hinweis">Keine Dokumente hinterlegt.</p>'}`;
+
+  drucke(html, 'Vorgangsakte – ' + (inv.title || 'Rechnung'));
+}
+
+/* ---------- Steuer-Export: selbst getragene Krankheitskosten ---------- */
+function steuerJahre(){
+  const j = new Set(invoices.map(i=> (i.date||'').slice(0,4)).filter(Boolean));
+  return [...j].sort().reverse();
+}
+function steuerDaten(jahr){
+  const rel = invoices.filter(i=> (i.date||'').slice(0,4) === String(jahr))
+                      .sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  const rows = rel.map(i=>{
+    const betrag = Number(i.amount)||0;
+    const zurueck = erstattetGesamt(i);
+    return { i, betrag, zurueck, selbst: Math.max(0, betrag - zurueck),
+             offen: i.erstattetOegk == null && i.erstattetKv == null };
+  });
+  return {
+    rows,
+    summeBetrag: rows.reduce((s,r)=> s + r.betrag, 0),
+    summeZurueck: rows.reduce((s,r)=> s + r.zurueck, 0),
+    summeSelbst: rows.reduce((s,r)=> s + r.selbst, 0),
+    offen: rows.filter(r=> r.offen).length,
+  };
+}
+function openSteuerSheet(){
+  const jahre = steuerJahre();
+  if(!jahre.length){ toast('Noch keine Rechnungen mit Datum erfasst'); return; }
+  let jahr = jahre[0];
+
+  const zeichne = ()=>{
+    const d = steuerDaten(jahr);
+    sheet.querySelector('#stBody').innerHTML = `
+      <div class="bzahlen">
+        <div><span class="bl">Rechnungen ${jahr}</span><b>${fmtEUR(d.summeBetrag)}</b></div>
+        <div><span class="bl">erstattet</span><b class="be">${fmtEUR(d.summeZurueck)}</b></div>
+      </div>
+      <div class="steuersumme">
+        <span>Selbst getragen ${jahr}</span>
+        <b>${fmtEUR(d.summeSelbst)}</b>
+      </div>
+      ${d.offen ? `<p class="hint" style="color:#92400e">${d.offen} Rechnung(en) ohne erfasste Erstattung –
+        die zählen hier voll als selbst getragen. Trag die Erstattung nach, sonst ist die Zahl zu hoch.</p>` : ''}
+      <div class="grouplabel">Belege</div>
+      <ul class="vliste">
+        ${d.rows.map(r=>`<li><span>${fmtDate(r.i.date)} · ${escapeHTML(r.i.title||'Rechnung')}</span>
+          <b>${fmtEUR(r.selbst)}</b></li>`).join('') || '<li><span>Keine Rechnungen in diesem Jahr</span></li>'}
+      </ul>
+      <p class="disclaimer">Krankheitskosten können in Österreich als außergewöhnliche Belastung geltend
+        gemacht werden; ob und in welcher Höhe sie sich auswirken, hängt vom Selbstbehalt nach deinem
+        Einkommen ab. Diese Aufstellung ist eine Vorarbeit für die Arbeitnehmerveranlagung, keine
+        Steuerberatung – ich bin kein Steuerberater. Prüfung und Einreichung bleiben bei dir.</p>`;
+  };
+
+  openSheet(`
+    <div class="sheet-head"><h2>Steuer-Übersicht</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <div class="field"><label>Jahr</label>
+        <select id="stJahr">${jahre.map(j=> `<option value="${j}">${j}</option>`).join('')}</select></div>
+      <div id="stBody"></div>
+    </div>
+    <div class="sheet-foot">
+      <button id="stCsv" class="grow">CSV</button>
+      <button class="primary grow" id="stPrint">Drucken / PDF</button>
+    </div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelector('#stJahr').addEventListener('change', e=>{ jahr = e.target.value; zeichne(); });
+  sheet.querySelector('#stCsv').addEventListener('click', ()=>{
+    const d = steuerDaten(jahr);
+    csvDownload([
+      ['Datum','Bezeichnung','Belegart','Rechnungsbetrag','ÖGK erstattet','Private KV erstattet','Selbst getragen'],
+      ...d.rows.map(r=> [r.i.date, r.i.title||'', wegOf(r.i).label,
+        (Number(r.i.amount)||0).toFixed(2), (Number(r.i.erstattetOegk)||0).toFixed(2),
+        (Number(r.i.erstattetKv)||0).toFixed(2), r.selbst.toFixed(2)]),
+      [], ['','','SUMME', d.summeBetrag.toFixed(2), '', '', d.summeSelbst.toFixed(2)],
+    ], 'krankheitskosten-' + jahr + '.csv');
+  });
+  sheet.querySelector('#stPrint').addEventListener('click', ()=>{
+    const d = steuerDaten(jahr);
+    drucke(`
+      <table class="p-tab">
+        <tr><th>Datum</th><th>Bezeichnung</th><th>Rechnung</th><th>Erstattet</th><th>Selbst getragen</th></tr>
+        ${d.rows.map(r=>`<tr><td>${fmtDate(r.i.date)}</td><td>${escapeHTML(r.i.title||'')}</td>
+          <td>${fmtEUR(r.betrag)}</td><td>${fmtEUR(r.zurueck)}</td><td>${fmtEUR(r.selbst)}</td></tr>`).join('')}
+        <tr class="p-summe"><td colspan="4">Summe selbst getragen ${jahr}</td><td>${fmtEUR(d.summeSelbst)}</td></tr>
+      </table>
+      <p class="p-hinweis">Aufstellung selbst getragener Krankheitskosten zur Vorlage bei der
+        Arbeitnehmerveranlagung. Keine Steuerberatung.</p>`,
+      'Krankheitskosten ' + jahr);
+  });
+  zeichne();
+}
+
+/* ---------- Selbstbehalt-Simulation ---------- */
+function openSimSheet(){
+  const jahre = steuerJahre().slice(0,6).reverse();
+  if(!jahre.length){ toast('Noch keine Rechnungen erfasst'); return; }
+  let sb = 300, quote = 80;
+
+  const zeichne = ()=>{
+    const rows = jahre.map(j=>{
+      const d = steuerDaten(j);
+      const ist = d.summeZurueck;
+      const modell = Math.max(0, (d.summeBetrag - sb)) * quote/100;
+      return { j, kosten:d.summeBetrag, ist, modell };
+    });
+    sheet.querySelector('#simBody').innerHTML = `
+      <table class="simtab">
+        <tr><th>Jahr</th><th>Kosten</th><th>tatsächlich zurück</th><th>Modell</th><th>Δ</th></tr>
+        ${rows.map(r=>`<tr>
+          <td>${r.j}</td><td>${fmtEUR(r.kosten)}</td><td>${fmtEUR(r.ist)}</td>
+          <td>${fmtEUR(r.modell)}</td>
+          <td class="${r.modell-r.ist>=0?'plus':'minus'}">${r.modell-r.ist>=0?'+':''}${fmtEUR(r.modell-r.ist)}</td>
+        </tr>`).join('')}
+      </table>
+      <p class="disclaimer">Stark vereinfachtes Modell: Es zieht den Selbstbehalt einmal pro Jahr von den
+        Gesamtkosten ab und wendet einen festen Prozentsatz an. Echte Tarife rechnen je Leistungsart,
+        mit Teillimits und Wartezeiten. Die Zahlen taugen als Größenordnung für ein Gespräch,
+        nicht als Entscheidungsgrundlage – und ich bin kein Versicherungsberater.</p>`;
+  };
+
+  openSheet(`
+    <div class="sheet-head"><h2>Was wäre bei anderem Selbstbehalt?</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <div class="row2">
+        <div class="field"><label>Selbstbehalt pro Jahr (€)</label>
+          <input type="number" inputmode="numeric" id="simSb" value="300"></div>
+        <div class="field"><label>Erstattung darüber (%)</label>
+          <input type="number" inputmode="numeric" id="simQ" value="80"></div>
+      </div>
+      <div id="simBody"></div>
+    </div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  const upd = ()=>{
+    sb    = Number(sheet.querySelector('#simSb').value) || 0;
+    quote = Math.min(100, Math.max(0, Number(sheet.querySelector('#simQ').value) || 0));
+    zeichne();
+  };
+  sheet.querySelector('#simSb').addEventListener('input', upd);
+  sheet.querySelector('#simQ').addEventListener('input', upd);
+  zeichne();
+}
+
+/* ==================================================================
+   VERTRAGS-COCKPIT
+   Alle Polizzen, nicht nur die Krankenversicherung. Der Versicherer
+   kennt dein Kuendigungsfenster genau – du sollst es auch kennen.
+   ================================================================== */
+const VERTRAGSARTEN = {
+  kranken:  { label:'Krankenversicherung', icon:'🏥' },
+  haushalt: { label:'Haushalt & Eigenheim', icon:'🏠' },
+  kfz:      { label:'Kfz',                  icon:'🚗' },
+  rechts:   { label:'Rechtsschutz',         icon:'⚖️' },
+  unfall:   { label:'Unfall',               icon:'🩼' },
+  leben:    { label:'Leben & Vorsorge',     icon:'📈' },
+  sonstige: { label:'Sonstige',             icon:'📄' },
+};
+/* Naechster Kuendigungstermin: Hauptfaelligkeit minus Frist. */
+function kuendigungsFenster(v){
+  if(!v.hauptfaelligkeit) return null;
+  const [, m, t] = v.hauptfaelligkeit.split('-').map(Number);
+  const heute = new Date();
+  let jahr = heute.getFullYear();
+  const hf = ()=> new Date(jahr, m-1, t);
+  if(hf() < heute) jahr++;
+  const stichtag = new Date(jahr, m-1, t);
+  stichtag.setMonth(stichtag.getMonth() - (Number(v.kuendigungsfrist)||3));
+  const tage = Math.ceil((stichtag - heute) / 86400000);
+  return { stichtag, tage, hauptfaellig: new Date(jahr, m-1, t) };
+}
+
+let vertraege = [];
+async function loadVertraege(){
+  vertraege = await stAll('policies');
+  renderVertraege();
+}
+function renderVertraege(){
+  const el = document.getElementById('vertraege');
+  const sortiert = vertraege.slice().sort((a,b)=>{
+    const fa = kuendigungsFenster(a), fb = kuendigungsFenster(b);
+    return (fa ? fa.tage : 99999) - (fb ? fb.tage : 99999);
+  });
+  el.innerHTML = `
+    ${sortiert.length ? sortiert.map(v=>{
+      const art = VERTRAGSARTEN[v.art || 'kranken'];
+      const f   = kuendigungsFenster(v);
+      const dringend = f && f.tage <= 60 && f.tage >= 0;
+      const monat = (v.praemien||[]).length
+        ? monatsBetrag((v.praemien||[]).slice().sort((a,b)=> b.ab.localeCompare(a.ab))[0]) : null;
+      return `
+      <button class="vcard ${dringend?'dringend':''}" data-vertrag="${v.id}" type="button">
+        <div class="vhead"><span class="lic">${art.icon}</span>
+          <span class="lname">${escapeHTML(v.versicherer || art.label)}</span>
+          ${monat != null ? `<span class="vpraemie">${fmtEUR(monat)}/Mon.</span>` : ''}</div>
+        <div class="lmeta">${escapeHTML(art.label)}${v.tarif ? ' · ' + escapeHTML(v.tarif) : ''}</div>
+        ${f ? `<div class="vfrist ${dringend?'an':''}">
+            Kündigung bis <b>${fmtDate(f.stichtag.toISOString().slice(0,10))}</b>
+            ${f.tage >= 0 ? `· noch ${f.tage} Tage` : ''}
+            · Hauptfälligkeit ${fmtDate(f.hauptfaellig.toISOString().slice(0,10))}
+          </div>` : '<div class="lmeta">Keine Hauptfälligkeit hinterlegt</div>'}
+      </button>`;
+    }).join('') : `<div class="leer"><div class="leer-ic">📄</div>
+        <h2>Noch keine Verträge</h2>
+        <p>Erfasse deine Polizzen mit Hauptfälligkeit und Kündigungsfrist. Die App warnt dich,
+           bevor das Kündigungsfenster zugeht – daran erinnert dich sonst niemand.</p></div>`}
+    <div class="statuslist" style="margin-top:12px">
+      <button type="button" id="vNeu" style="--sc:#2563eb;--sbg:#eff6ff">➕ Vertrag hinzufügen</button>
+    </div>`;
+  el.querySelector('#vNeu').addEventListener('click', ()=> openVertragSheet(null));
+  el.querySelectorAll('[data-vertrag]').forEach(b=>
+    b.addEventListener('click', ()=> openVertragSheet(b.dataset.vertrag)));
+}
+function openVertragSheet(id){
+  const v = id ? vertraege.find(x=> x.id === id)
+              : { id:uid(), art:'sonstige', versicherer:'', tarif:'', polizzennr:'',
+                  hauptfaelligkeit:'', kuendigungsfrist:3, leistungen:[], docs:[], praemien:[] };
+  if(!v) return;
+  openSheet(`
+    <div class="sheet-head"><h2>${id ? 'Vertrag' : 'Neuer Vertrag'}</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <div class="field"><label>Art</label>
+        <select id="v-art">${Object.keys(VERTRAGSARTEN).map(k=>
+          `<option value="${k}" ${k===(v.art||'sonstige')?'selected':''}>${VERTRAGSARTEN[k].icon} ${escapeHTML(VERTRAGSARTEN[k].label)}</option>`).join('')}</select></div>
+      <div class="field"><label>Versicherer</label>
+        <input type="text" id="v-vers" value="${escapeHTML(v.versicherer||'')}" placeholder="z. B. Generali"></div>
+      <div class="row2">
+        <div class="field"><label>Tarif</label>
+          <input type="text" id="v-tarif" value="${escapeHTML(v.tarif||'')}"></div>
+        <div class="field"><label>Polizzennummer</label>
+          <input type="text" id="v-nr" value="${escapeHTML(v.polizzennr||'')}"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Hauptfälligkeit</label>
+          <input type="date" id="v-hf" value="${v.hauptfaelligkeit||''}"></div>
+        <div class="field"><label>Kündigungsfrist (Monate)</label>
+          <input type="number" inputmode="numeric" id="v-kf" value="${v.kuendigungsfrist||3}"></div>
+      </div>
+      <p class="hint">Die Kündigungsfrist steht in den Bedingungen – bei Sachversicherungen meist
+        ein bis drei Monate vor der Hauptfälligkeit.</p>
+      ${(v.art||'') === 'kranken' ? '<p class="hint">Diese Polizze wird auch im Bereich Deckung verwendet.</p>' : ''}
+    </div>
+    <div class="sheet-foot">
+      ${id ? '<button class="danger" id="vDel">Löschen</button>' : ''}
+      <button class="primary grow" id="vSave">Speichern</button>
+    </div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelector('#vSave').addEventListener('click', async ()=>{
+    v.art              = sheet.querySelector('#v-art').value;
+    v.versicherer      = sheet.querySelector('#v-vers').value.trim();
+    v.tarif            = sheet.querySelector('#v-tarif').value.trim();
+    v.polizzennr       = sheet.querySelector('#v-nr').value.trim();
+    v.hauptfaelligkeit = sheet.querySelector('#v-hf').value;
+    v.kuendigungsfrist = Number(sheet.querySelector('#v-kf').value) || 3;
+    await stPut('policies', v);
+    closeSheet(); await loadVertraege(); await loadDeckung(); toast('Gespeichert');
+  });
+  const d = sheet.querySelector('#vDel');
+  if(d) d.addEventListener('click', async ()=>{
+    if(!confirm('Diesen Vertrag löschen? Erfasste Leistungen und Prämien gehen mit verloren.')) return;
+    await stDel('policies', v.id);
+    closeSheet(); await loadVertraege(); await loadDeckung(); toast('Gelöscht');
+  });
+}
+
 /* ---------- Ansichtswechsel ---------- */
 let currentView = 'rechnungen';
 function setView(v){
   currentView = v;
   document.getElementById('view-rechnungen').hidden = (v !== 'rechnungen');
   document.getElementById('view-deckung').hidden    = (v !== 'deckung');
+  document.getElementById('view-vertraege').hidden  = (v !== 'vertraege');
   document.getElementById('btnAdd').hidden      = (v !== 'rechnungen');
   document.getElementById('btnLeistung').hidden = (v !== 'deckung');
   document.querySelectorAll('.mainbtn').forEach(b=>
     b.setAttribute('aria-selected', String(b.dataset.view === v)));
-  if(v === 'deckung') loadDeckung();
+  if(v === 'deckung')   loadDeckung();
+  if(v === 'vertraege') loadVertraege();
 }
 document.querySelectorAll('.mainbtn').forEach(b=>
   b.addEventListener('click', ()=> setView(b.dataset.view)));

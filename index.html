@@ -105,6 +105,17 @@ button:disabled{ opacity:.5; }
 .stat .n{ font-size:17px; font-weight:800; line-height:1.2; }
 .stat .l{ font-size:11px; color:var(--sub); }
 
+/* ---------- Phasen-Leiste: Vorbereitung / Fokus / Fertig ---------- */
+.tabgroups{
+  display:flex; gap:6px; padding:6px calc(12px + var(--sar)) 0 calc(12px + var(--sal));
+}
+.tabgroups span{
+  text-align:center; font-size:10px; font-weight:800; color:#94a3b8;
+  text-transform:uppercase; letter-spacing:.03em; padding-bottom:6px;
+  border-bottom:2.5px solid var(--line); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.tabgroups span.fokus{ color:#b45309; border-bottom-color:#d97706; }
+
 /* ---------- Status-Tabs (nur Handy/Tablet) ---------- */
 .tabs{
   display:flex; gap:6px; overflow-x:auto; scrollbar-width:none;
@@ -129,7 +140,7 @@ button:disabled{ opacity:.5; }
 /* ---------- Board ---------- */
 .board{
   display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory;
-  padding:4px calc(12px + var(--sar)) 96px calc(12px + var(--sal));
+  padding:4px calc(12px + var(--sar)) 112px calc(12px + var(--sal));
   scrollbar-width:none;
 }
 .board::-webkit-scrollbar{ display:none; }
@@ -139,10 +150,20 @@ button:disabled{ opacity:.5; }
   display:flex; flex-direction:column; min-height:52vh;
 }
 .col.dragover{ border-color:var(--col-c,#2563eb); background:var(--col-bg,#eff6ff); }
+/* Kassa-Spalten: bewusst kompakt und ruhig, das ist Vorbereitung. */
+.col.phase-kassa{ min-height:40vh; }
+.col.phase-kassa .col-head{ font-size:12.5px; padding:9px 14px; }
+/* Die private Versicherung ist der eigentliche Wert der App. */
+.col.phase-kv{ border-color:#d97706; border-width:2px; box-shadow:0 2px 10px rgba(217,119,6,.12); }
+.col.phase-kv .col-head{ font-size:15.5px; }
 .col-head{
   padding:12px 14px; border-bottom:1px solid var(--line); border-radius:13px 13px 0 0;
   font-size:14px; font-weight:800; color:var(--col-c,#334155); background:var(--col-bg,#f8fafc);
   display:flex; justify-content:space-between; align-items:center; gap:8px;
+}
+.badge-fokus{
+  display:inline-block; margin-left:8px; background:#d97706; color:#fff; border-radius:20px;
+  font-size:9.5px; font-weight:800; padding:2px 8px; letter-spacing:.02em; vertical-align:middle;
 }
 .col-head .count{
   background:var(--col-c,#94a3b8); color:#fff; border-radius:20px;
@@ -182,20 +203,30 @@ button:disabled{ opacity:.5; }
 .card .wait-tag{
   font-size:11px; background:#e0e7ff; color:#3730a3; border-radius:6px; padding:3px 7px; font-weight:700;
 }
+.card .wer-tag{
+  font-size:11px; background:#f1f5f9; color:#475569; border-radius:6px; padding:3px 7px; font-weight:700;
+}
 .card-move{
   flex:none; width:46px; min-height:var(--tap); border:none; border-left:1px solid var(--line);
   background:#f8fafc; color:var(--sub); font-size:19px; border-radius:0;
 }
 
-/* ---------- Aktionsleiste unten ---------- */
-.actionbar{
+/* ---------- Hauptnavigation: unten, mit dem Daumen erreichbar ----------
+   Bewusst wie bei den etablierten Beihilfe-Apps: zwei Ziele links, die
+   Haupt-Handlung "+" in der Mitte, zwei Ziele rechts. Fixiert am unteren
+   Bildschirmrand statt oben – das ist die Zone, die man ohne Griffwechsel
+   erreicht. */
+.mainnav{
   position:fixed; z-index:35; left:0; right:0; bottom:0;
-  padding:10px calc(12px + var(--sar)) calc(10px + var(--sab)) calc(12px + var(--sal));
-  background:linear-gradient(to top, #f1f5f9 62%, rgba(241,245,249,0));
-  display:flex; gap:8px; align-items:center;
+  padding:8px calc(12px + var(--sar)) calc(8px + var(--sab)) calc(12px + var(--sal));
+  background:linear-gradient(to top, #f1f5f9 70%, rgba(241,245,249,0));
+  display:flex; gap:6px; align-items:center;
 }
-.actionbar .grow{ flex:1; }
-.actionbar .primary{ box-shadow:0 6px 18px rgba(37,99,235,.35); }
+.fab{
+  flex:none; width:var(--tap); height:var(--tap); min-height:var(--tap);
+  border-radius:50%; background:var(--blue); color:#fff; font-size:24px; font-weight:600;
+  line-height:1; box-shadow:0 6px 18px rgba(37,99,235,.35); border:none;
+}
 
 /* ---------- Bottom-Sheet (ersetzt das Desktop-Modal) ---------- */
 .overlay{
@@ -363,13 +394,8 @@ button:disabled{ opacity:.5; }
 .stat.late{ border-color:#fdba74; background:#fff7ed; }
 .stat.late .n{ color:#9a3412; }
 
-/* Hauptnavigation zwischen den zwei Modulen */
-.mainnav{
-  display:flex; gap:6px; padding:8px calc(12px + var(--sar)) 0 calc(12px + var(--sal));
-  background:var(--bg);
-}
 .mainbtn{
-  flex:1; min-height:42px; border-radius:10px; font-size:14px; font-weight:700;
+  flex:1; min-height:42px; border-radius:10px; font-size:13px; font-weight:700;
   background:#fff; color:var(--sub); border:1px solid var(--line);
 }
 .mainbtn[aria-selected="true"]{ background:var(--ink); color:#fff; border-color:var(--ink); }
@@ -383,7 +409,7 @@ button:disabled{ opacity:.5; }
 .erkannt span{ color:#1e40af; }
 
 /* Deckungs-Ansicht */
-#view-deckung{ padding:10px calc(12px + var(--sar)) 96px calc(12px + var(--sal)); }
+#view-deckung{ padding:10px calc(12px + var(--sar)) 112px calc(12px + var(--sal)); }
 .leer{
   background:#fff; border:1.5px dashed var(--line); border-radius:14px;
   padding:28px 20px; text-align:center;
@@ -495,7 +521,7 @@ button:disabled{ opacity:.5; }
 .qv span{ font-size:10.5px; color:#94a3b8; }
 
 /* Verträge */
-#view-vertraege{ padding:10px calc(12px + var(--sar)) 96px calc(12px + var(--sal)); }
+#view-vertraege{ padding:10px calc(12px + var(--sar)) 112px calc(12px + var(--sal)); }
 .vcard{
   display:block; width:100%; text-align:left; background:#fff; border:1px solid var(--line);
   border-radius:12px; padding:13px 14px; margin-bottom:10px; min-height:0;
@@ -523,7 +549,7 @@ button:disabled{ opacity:.5; }
 .simtab .minus{ color:#b91c1c; font-weight:700; }
 
 /* Chancen */
-#view-chancen{ padding:10px calc(12px + var(--sar)) 96px calc(12px + var(--sal)); }
+#view-chancen{ padding:10px calc(12px + var(--sar)) 112px calc(12px + var(--sal)); }
 .chintro{
   background:#0f172a; color:#e2e8f0; border-radius:12px; padding:14px 15px;
   font-size:13px; line-height:1.55;
@@ -572,6 +598,7 @@ button:disabled{ opacity:.5; }
   border-radius:10px; padding:11px 13px; font-size:13px; font-weight:700; text-align:left;
 }
 .chbanner span:first-child{ flex:1; }
+.chbanner.amber{ background:#fffbeb; border-color:#fde68a; color:#92400e; }
 
 /* Druckbereich – im Normalbetrieb unsichtbar */
 #printarea{ display:none; }
@@ -585,6 +612,8 @@ body.printing #printarea{ display:block; }
   .p-tab{ width:100%; border-collapse:collapse; margin-bottom:3mm; }
   .p-tab th, .p-tab td{ border:1px solid #999; padding:1.6mm 2mm; text-align:left; vertical-align:top; font-size:10pt; }
   .p-tab th{ background:#eee; width:38%; }
+  .p-tab.p-multi th{ width:auto; }
+  .p-sub{ color:#555; font-size:9pt; }
   .p-summe td{ font-weight:bold; background:#eee; }
   .p-doc{ page-break-inside:avoid; margin-bottom:5mm; }
   .p-dochead{ font-size:9pt; margin:0 0 1mm; font-weight:bold; }
@@ -613,7 +642,7 @@ body.printing #printarea{ display:block; }
 /* ---------- Toast und Update-Banner ---------- */
 .toast{
   position:fixed; left:50%; transform:translateX(-50%);
-  bottom:calc(78px + var(--sab)); background:#0f172a; color:#fff;
+  bottom:calc(86px + var(--sab)); background:#0f172a; color:#fff;
   padding:11px 18px; border-radius:10px; font-size:14px; max-width:calc(100vw - 32px);
   opacity:0; pointer-events:none; transition:opacity .2s; z-index:90; text-align:center;
 }
@@ -653,10 +682,10 @@ body.printing #printarea{ display:block; }
   .card-main{ cursor:pointer; }
   .card[draggable="true"] .card-main{ cursor:grab; }
   .card[draggable="true"]:active .card-main{ cursor:grabbing; }
-  .actionbar{
+  .mainnav{
     position:sticky; bottom:0; background:linear-gradient(to top,#f1f5f9 70%,rgba(241,245,249,0));
   }
-  .toast{ bottom:96px; }
+  .toast{ bottom:104px; }
 }
 </style>
 </head>
@@ -670,16 +699,11 @@ body.printing #printarea{ display:block; }
   <button class="icon-btn" id="btnMenu" aria-label="Menü">⋯</button>
 </header>
 
-<nav class="mainnav" id="mainnav" role="tablist">
-  <button class="mainbtn" data-view="rechnungen" role="tab" aria-selected="true">🧾 Rechnungen</button>
-  <button class="mainbtn" data-view="deckung"    role="tab" aria-selected="false">🛡 Deckung</button>
-  <button class="mainbtn" data-view="vertraege"  role="tab" aria-selected="false">📄 Verträge</button>
-  <button class="mainbtn" data-view="chancen"    role="tab" aria-selected="false">💡 Chancen</button>
-</nav>
-
 <section id="view-rechnungen">
+  <button class="chbanner" id="fristBanner" hidden></button>
   <button class="chbanner" id="chancenBanner" hidden></button>
   <div class="stats" id="stats"></div>
+  <div class="tabgroups" id="tabgroups"></div>
   <div class="tabs" id="tabs" role="tablist"></div>
   <div class="board" id="board"></div>
 </section>
@@ -698,11 +722,17 @@ body.printing #printarea{ display:block; }
 
 <div id="printarea" aria-hidden="true"></div>
 
-<div class="actionbar">
-  <span class="grow"></span>
-  <button class="primary" id="btnAdd">+ Neue Rechnung</button>
-  <button class="primary" id="btnLeistung" hidden>+ Leistung</button>
-</div>
+<!-- Navigation unten: bequemer mit dem Daumen erreichbar als oben.
+     Die Haupt-Handlung ("+") sitzt in der Mitte, wie bei den etablierten
+     Beihilfe-Apps, die genau dieses Layout durchgetestet haben. -->
+<nav class="mainnav" id="mainnav" role="tablist">
+  <button class="mainbtn" data-view="rechnungen" role="tab" aria-selected="true">🧾 Rechnungen</button>
+  <button class="mainbtn" data-view="deckung"    role="tab" aria-selected="false">🛡 Deckung</button>
+  <button class="fab" id="btnAdd" aria-label="Neue Rechnung anlegen" title="Neue Rechnung anlegen">+</button>
+  <button class="fab" id="btnLeistung" hidden aria-label="Neue Leistung anlegen" title="Neue Leistung anlegen">+</button>
+  <button class="mainbtn" data-view="vertraege"  role="tab" aria-selected="false">📄 Verträge</button>
+  <button class="mainbtn" data-view="chancen"    role="tab" aria-selected="false">💡 Chancen</button>
+</nav>
 
 <div class="overlay" id="overlay">
   <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
@@ -717,13 +747,18 @@ body.printing #printarea{ display:block; }
 
 <script src="./vendor/tesseract/tesseract.min.js"></script>
 <script>
-/* ---------- Spalten ---------- */
+/* ---------- Spalten ----------
+   Zwei Phasen, bewusst ungleich gewichtet: Die drei Kassa-Schritte
+   sind Vorbereitung (grau, kompakt) – der eigentliche Wert der App
+   liegt im Schritt bei der privaten Versicherung (Frist, Leistungs-
+   topf, Bilanz). Die Spalte bekommt darum eigene Farbe und ein Badge,
+   die Kassa-Spalten laufen optisch bewusst als Nebensache mit. */
 const COLUMNS = [
-  { key:'bezahlt',          title:'1 · Bezahlt',                    short:'Bezahlt',      c:'#2563eb', bg:'#eff6ff' },
-  { key:'oegk_eingereicht', title:'2 · Bei ÖGK eingereicht',        short:'ÖGK offen',    c:'#0891b2', bg:'#ecfeff' },
-  { key:'oegk_erstattet',   title:'3 · ÖGK-Erstattung erhalten',    short:'ÖGK erhalten', c:'#7c3aed', bg:'#f5f3ff' },
-  { key:'kv_eingereicht',   title:'4 · Bei privater KV eingereicht',short:'Private KV',   c:'#d97706', bg:'#fffbeb' },
-  { key:'abgeschlossen',    title:'5 · Abgeschlossen',              c:'#16a34a', short:'Fertig', bg:'#f0fdf4' },
+  { key:'bezahlt',          title:'1 · Bezahlt',                 short:'Bezahlt',     c:'#64748b', bg:'#f8fafc', phase:'kassa' },
+  { key:'oegk_eingereicht', title:'2 · Bei Kasse eingereicht',   short:'Kasse offen', c:'#64748b', bg:'#f1f5f9', phase:'kassa' },
+  { key:'oegk_erstattet',   title:'3 · Kassa-Erstattung da',     short:'Kasse fertig',c:'#64748b', bg:'#f8fafc', phase:'kassa' },
+  { key:'kv_eingereicht',   title:'🎯 Bei privater Versicherung',short:'Privat-KV',   c:'#d97706', bg:'#fffbeb', phase:'kv', badge:'im Fokus' },
+  { key:'abgeschlossen',    title:'5 · Abgeschlossen',           short:'Fertig',      c:'#16a34a', bg:'#f0fdf4', phase:'fertig' },
 ];
 const colByKey = Object.fromEntries(COLUMNS.map(c=>[c.key,c]));
 
@@ -1458,7 +1493,7 @@ const HINWEISE = [
 /* ---------- Erklärtexte: stehen nicht mehr dauerhaft im Layout,
    sondern nur hinter den ⓘ-Buttons (Tap am Handy, Hover am Desktop). ---------- */
 const INFO = {
-  app: '<b>Wofür ist das?</b><br>Rechnungen von Wahlärzten und Apotheken durch die Erstattung begleiten: bezahlt → bei der ÖGK eingereicht → erstattet → bei der privaten KV eingereicht → abgeschlossen.<br><br>Neue Rechnung anlegen, Foto oder PDF anhängen – Betrag, Datum und Aussteller werden lokal ausgelesen.',
+  app: '<b>Wofür ist das?</b><br>Rechnungen von Wahlärzten und Apotheken durch die Erstattung begleiten – für dich oder für deine Kinder. Der eigentliche Fokus liegt auf dem Schritt bei der <b>privaten Versicherung</b>: Frist, Leistungstopf und Status auf einen Blick. Die Einreichung bei der Kasse (ÖGK, SVS, BVAEB) ist Teil des Wegs dorthin, läuft aber bewusst im Hintergrund mit.<br><br>Neue Rechnung anlegen, Foto oder PDF anhängen – Betrag, Datum und Aussteller werden lokal ausgelesen. Über das Menü lässt sich eine kompakte Übersicht für den eigenen Versicherungsmakler erzeugen.',
   ocr: '<b>Automatische Erkennung</b><br>Betrag, Datum und Aussteller werden direkt auf dem Gerät aus der Datei gelesen (Texterkennung im Browser, keine Internetverbindung nötig).<br><br>Das ist eine <b>Lesehilfe, keine Garantie</b> – bitte immer kurz prüfen.',
   erstattung: '<b>Wird das erstattet?</b><br>Ob die ÖGK eine Leistung tatsächlich und in welcher Höhe erstattet, kann dieses Tool nicht bestimmen. Das hängt vom genauen Tarifposten ab und muss bei der ÖGK bzw. deiner Versicherung nachgefragt werden.',
   privacy: '<b>Wo liegen meine Daten?</b><br>Ausschließlich auf diesem Gerät (IndexedDB im Browser). Keine Übertragung an einen Server, auch die Dokumentenanalyse läuft offline.<br><br><b>Achtung:</b> „Browserdaten löschen“ kann diese Daten mitlöschen. Deshalb regelmäßig „Sichern“ nutzen.',
@@ -2026,7 +2061,7 @@ async function loadAll(){
   for(const inv of invoices){ if(migrate(inv)) await dbPut(inv); }
   render();
 }
-function render(){ renderStats(); renderTabs(); renderBoard(); updateBadge(); updateChancenZaehler(); }
+function render(){ renderStats(); renderFristBanner(); renderTabs(); renderBoard(); updateBadge(); updateChancenZaehler(); }
 
 /* Zahl auf dem App-Icon: was ist bezahlt, aber noch nirgends eingereicht. */
 function updateBadge(){
@@ -2038,13 +2073,38 @@ function updateBadge(){
   }catch(e){ /* Badging nicht verfuegbar – unkritisch */ }
 }
 
+/* Eigenanteil eines Jahres – nur aus Rechnungen, bei denen schon eine
+   Erstattung eingetragen ist. Sonst wuerde jede noch unbearbeitete
+   Rechnung faelschlich als "komplett selbst getragen" hineinzaehlen. */
+function eigenanteilJahr(jahr){
+  const rel = invoices.filter(i=> (i.date||'').slice(0,4) === String(jahr)
+                              && (i.erstattetOegk != null || i.erstattetKv != null));
+  return rel.reduce((s,i)=> s + Math.max(0, (Number(i.amount)||0) - erstattetGesamt(i)), 0);
+}
+/* Vier Fakten statt vieler Zahlen – angelehnt an die Dashboards
+   etablierter Beihilfe-Apps: Offen, Erhalten, Eigenanteil, im Blick. */
 function renderStats(){
-  const total = invoices.length;
-  const offen = invoices.filter(i=> i.status!=='abgeschlossen');
+  const offen = invoices.filter(i=> i.status !== 'abgeschlossen');
   const sumOffen = offen.reduce((s,i)=> s + (Number(i.amount)||0), 0);
-  const sumDone  = invoices.filter(i=> i.status==='abgeschlossen').reduce((s,i)=> s + (Number(i.amount)||0), 0);
-  /* Handlungsbedarf ist die eigentlich interessante Zahl: was haengt
-     an mir, und was haengt an der Gegenseite und dauert zu lange. */
+  const jahr = new Date().getFullYear();
+  const erhaltenJahr = erstattungenImJahr(jahr,'erstattetOegk') + erstattungenImJahr(jahr,'erstattetKv');
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="n">${offen.length}</div><div class="l">in Bearbeitung</div></div>
+    <div class="stat"><div class="n">${fmtEUR(sumOffen)}</div><div class="l">offen</div></div>
+    <div class="stat"><div class="n">${fmtEUR(erhaltenJahr)}</div><div class="l">erhalten ${jahr}</div></div>
+    <div class="stat"><div class="n">${fmtEUR(eigenanteilJahr(jahr))}</div><div class="l">Eigenanteil ${jahr}</div></div>`;
+}
+
+/* Ein Banner statt vieler Warn-Kacheln: zeigt genau das Dringendste,
+   priorisiert nach Geld-Risiko. Nach dem Vorbild der Beihilfe-Apps,
+   die genau so auf "was brennt gerade" hinweisen statt alles gleich
+   laut anzuzeigen. */
+function renderFristBanner(){
+  const banner = document.getElementById('fristBanner');
+  if(!banner) return;
+  const abgelaufen = invoices.filter(i=> { const f = fristStatus(i); return f && f.stufe === 'abgelaufen'; });
+  const knapp = invoices.filter(i=> { const f = fristStatus(i); return f && f.stufe === 'knapp'; });
   const unvollstaendig = invoices.filter(i=>{
     const s = naechsterSchritt(i);
     if(!s) return false;
@@ -2053,17 +2113,49 @@ function renderStats(){
   });
   const spaet = invoices.filter(i=> ueberfaellig(i) > 0);
 
-  document.getElementById('stats').innerHTML = `
-    <div class="stat"><div class="n">${offen.length}</div><div class="l">in Bearbeitung</div></div>
-    <div class="stat"><div class="n">${fmtEUR(sumOffen)}</div><div class="l">offen</div></div>
-    <div class="stat ${unvollstaendig.length?'warn':''}"><div class="n">${unvollstaendig.length}</div>
-      <div class="l">Dokument fehlt</div></div>
-    <div class="stat ${spaet.length?'late':''}"><div class="n">${spaet.length}</div>
-      <div class="l">überfällig</div></div>`;
+  let text = null, urgent = false, ziel = null;
+  if(abgelaufen.length){
+    const summe = abgelaufen.reduce((s,i)=> s + (Number(i.amount)||0), 0);
+    text = `⛔ ${abgelaufen.length} Rechnung${abgelaufen.length===1?'':'en'}: Frist abgelaufen – ${fmtEUR(summe)} nicht mehr rückforderbar`;
+    urgent = true; ziel = abgelaufen[0].id;
+  } else if(knapp.length){
+    const summe = knapp.reduce((s,i)=> s + (Number(i.amount)||0), 0);
+    knapp.sort((a,b)=> fristStatus(a).tage - fristStatus(b).tage);
+    text = `⏰ ${knapp.length} Rechnung${knapp.length===1?'':'en'} laufen bald aus der Frist – ${fmtEUR(summe)} im Blick behalten`;
+    ziel = knapp[0].id;
+  } else if(unvollstaendig.length){
+    text = `📎 ${unvollstaendig.length} Rechnung${unvollstaendig.length===1?'':'en'}: Dokument fehlt noch für den nächsten Schritt`;
+    ziel = unvollstaendig[0].id;
+  } else if(spaet.length){
+    text = `🔔 ${spaet.length} Rechnung${spaet.length===1?'':'en'} liegt seit längerem ohne Rückmeldung – nachfragen lohnt sich`;
+    ziel = spaet[0].id;
+  }
+
+  banner.hidden = !text;
+  banner.classList.toggle('amber', !!text && !urgent);
+  if(text){
+    banner.innerHTML = `<span>${escapeHTML(text)}</span><span class="hgo">›</span>`;
+    banner.onclick = ()=> openEditor(ziel);
+  }
 }
 
+/* Kleine Phasen-Leiste ueber den Tabs: macht auf einen Blick klar,
+   dass die drei Kassa-Schritte nur Vorbereitung sind und der Wert
+   der App im Schritt "privat einreichen" liegt. */
+const PHASE_GROUPS = [
+  { phase:'kassa',  label:'Vorbereitung bei der Kasse' },
+  { phase:'kv',     label:'🎯 Private Versicherung' },
+  { phase:'fertig', label:'Fertig' },
+];
 function renderTabs(){
   const el = document.getElementById('tabs');
+  const groups = document.getElementById('tabgroups');
+  if(groups){
+    groups.innerHTML = PHASE_GROUPS.map(g=>{
+      const n = COLUMNS.filter(c=> c.phase === g.phase).length;
+      return `<span class="${g.phase==='kv' ? 'fokus' : ''}" style="flex:${n}">${escapeHTML(g.label)}</span>`;
+    }).join('');
+  }
   el.innerHTML = COLUMNS.map((c,i)=>`
     <button class="tab" role="tab" data-idx="${i}" style="--tc:${c.c}"
             aria-selected="${i===activeCol}">
@@ -2095,12 +2187,12 @@ function renderBoard(){
     const items = invoices.filter(i=> i.status === col.key)
                           .sort((a,b)=> (b.updatedAt||'').localeCompare(a.updatedAt||''));
     const colEl = document.createElement('div');
-    colEl.className = 'col';
+    colEl.className = 'col phase-' + col.phase;
     colEl.style.setProperty('--col-c', col.c);
     colEl.style.setProperty('--col-bg', col.bg);
     colEl.dataset.key = col.key;
     colEl.innerHTML = `
-      <div class="col-head"><span>${escapeHTML(col.title)}</span><span class="count">${items.length}</span></div>
+      <div class="col-head"><span>${escapeHTML(col.title)}${col.badge ? `<span class="badge-fokus">${escapeHTML(col.badge)}</span>` : ''}</span><span class="count">${items.length}</span></div>
       <div class="col-body"></div>
       <div class="col-foot"><button data-add="${col.key}">+ Rechnung hier anlegen</button></div>`;
 
@@ -2170,6 +2262,7 @@ function renderCard(inv, col){
       <span class="meta"><span>${fmtDate(inv.date)}</span><span class="amt">${fmtEUR(inv.amount)}</span></span>
       <span class="tags">
         <span class="weg-tag" style="--wc:${wegOf(inv).c};--wbg:${wegOf(inv).bg}">${wegOf(inv).icon} ${escapeHTML(wegOf(inv).kurz)}</span>
+        ${inv.fuerWen ? `<span class="wer-tag">👤 ${escapeHTML(inv.fuerWen)}</span>` : ''}
         ${(inv.docs||[]).length ? `<span class="file-tag">📎 ${(inv.docs||[]).length}</span>` : ''}
         ${ueberfaellig(inv) ? `<span class="late-tag">🔔 seit ${ueberfaellig(inv)} Tagen – nachfragen</span>`
           : (liegezeit(inv) ? `<span class="wait-tag">⏳ ${liegezeit(inv)}</span>` : '')}
@@ -2534,7 +2627,9 @@ function openWegeSheet(highlight){
     <div class="sheet-head"><h2>Wie die Erstattung läuft</h2>
       <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
     <div class="sheet-body">
-      <p class="hint" style="margin:0 0 4px">Drei Wege – sie unterscheiden sich darin, ob die ÖGK überhaupt beteiligt ist.</p>
+      <p class="hint" style="margin:0 0 4px">Drei Wege – sie unterscheiden sich darin, ob die Kasse überhaupt beteiligt ist.
+        In allen drei steckt der eigentliche Wert am Ende: der Schritt bei der <b>privaten Versicherung</b>.
+        Alles davor ist Vorbereitung, die diese App im Blick behält, ohne dich damit aufzuhalten.</p>
       ${WEG_KEYS.map(k=>{
         const w = WEGE[k];
         const an = (highlight === k);
@@ -2573,6 +2668,7 @@ document.getElementById('btnMenu').addEventListener('click', ()=>{
     <div class="sheet-head"><h2>Menü</h2><button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
     <div class="sheet-body">
       <div class="statuslist">
+        <button type="button" id="mMakler" style="--sc:#d97706;--sbg:#fffbeb">📤 Übersicht für meinen Makler</button>
         <button type="button" id="mExport" style="--sc:#2563eb">⬇ Sichern (JSON-Backup)</button>
         <button type="button" id="mImport" style="--sc:#0891b2">⬆ Wiederherstellen</button>
         <button type="button" class="info-btn-row" data-info="privacy" style="--sc:#16a34a">🔒 Wo liegen meine Daten?</button>
@@ -2591,6 +2687,7 @@ document.getElementById('btnMenu').addEventListener('click', ()=>{
       document.getElementById('menuInfo').innerHTML = INFO[b.dataset.info] || '';
     });
   });
+  sheet.querySelector('#mMakler').addEventListener('click', ()=>{ closeSheet(); openMaklerSheet(); });
   sheet.querySelector('#mExport').addEventListener('click', exportBackup);
   const fi = sheet.querySelector('#importFile');
   sheet.querySelector('#mImport').addEventListener('click', ()=> fi.click());
@@ -2616,6 +2713,11 @@ function openEditor(id, presetStatus){
       <div class="field">
         <label>Bezeichnung</label>
         <input type="text" id="f-title" value="${inv ? escapeHTML(inv.title) : ''}" placeholder="z. B. Dr. Müller – Kontrolle">
+      </div>
+      <div class="field">
+        <label>Für wen (optional)</label>
+        <input type="text" id="f-fuerwen" list="fuerwenListe" value="${inv ? escapeHTML(inv.fuerWen||'') : ''}" placeholder="z. B. Ich, oder Kind: Lena">
+        <datalist id="fuerwenListe">${fuerWenVorschlaege().map(n=>`<option value="${escapeHTML(n)}">`).join('')}</datalist>
       </div>
       <div class="row2">
         <div class="field"><label>Betrag (€)</label>
@@ -2838,8 +2940,14 @@ function renderHistory(inv){
   return `<div class="history"><h3>Verlauf</h3><ul>${items || '<li>Kein Verlauf</li>'}</ul></div>`;
 }
 
+/* Zuletzt verwendete "Für wen"-Namen, damit man bei mehreren
+   Familienmitgliedern nicht jedes Mal neu tippt. */
+function fuerWenVorschlaege(){
+  return [...new Set(invoices.map(i=> (i.fuerWen||'').trim()).filter(Boolean))].sort();
+}
 async function saveEditor(id){
   const title  = document.getElementById('f-title').value.trim() || 'Ohne Bezeichnung';
+  const fuerWen = document.getElementById('f-fuerwen').value.trim();
   const amount = document.getElementById('f-amount').value;
   const date   = document.getElementById('f-date').value;
   const status = document.getElementById('f-status').value;
@@ -2853,7 +2961,7 @@ async function saveEditor(id){
   if(id){
     const inv = invoices.find(i=> i.id === id);
     const statusChanged = inv.status !== status;
-    Object.assign(inv, { title, amount, date, note, status, weg, needsReview:false, updatedAt:now,
+    Object.assign(inv, { title, fuerWen, amount, date, note, status, weg, needsReview:false, updatedAt:now,
                          reference: pendingRef, iban: pendingIban,
                          erstattetOegk: eOegk === '' ? null : Number(eOegk),
                          erstattetKv:   eKv   === '' ? null : Number(eKv), ablehnung });
@@ -2865,7 +2973,7 @@ async function saveEditor(id){
     await dbPut(inv);
   } else {
     await dbPut({
-      id: uid(), title, amount, date, note, status, weg,
+      id: uid(), title, fuerWen, amount, date, note, status, weg,
       erstattetOegk: eOegk === '' ? null : Number(eOegk),
       erstattetKv:   eKv   === '' ? null : Number(eKv), ablehnung,
       docs: pendingDocs,
@@ -3808,6 +3916,137 @@ function openSimSheet(){
   sheet.querySelector('#simSb').addEventListener('input', upd);
   sheet.querySelector('#simQ').addEventListener('input', upd);
   zeichne();
+}
+
+/* ==================================================================
+   MAKLER-EXPORT
+   Eine kompakte Uebersicht, die man dem eigenen Versicherungsmakler
+   zeigen oder schicken kann: offene Vorgaenge mit Fristen, Stand der
+   Leistungstoepfe, Praemien-Bilanz. Kein Konto, keine Freigabe fuer
+   den Makler in dieser App noetig – nur ein Blatt, das er sonst
+   muehsam telefonisch erfragen muesste.
+   ================================================================== */
+function maklerDaten(){
+  const offene = invoices.filter(i=> i.status !== 'abgeschlossen')
+                         .sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  const toepfe = leistungen.map(l=>{
+    const v = verbrauchFuer(l, policy, usage);
+    const rest = restVon(l, v);
+    const limitBekannt = l.limitTyp === 'betrag' || l.limitTyp === 'anzahl';
+    return { l, v, rest, limitBekannt };
+  });
+  const jahr = new Date().getFullYear();
+  const bilanz = (policy && (policy.praemien||[]).length) ? {
+    jahrP: praemienImJahr(policy, jahr), jahrE: erstattungenImJahr(jahr, 'erstattetKv'),
+    gesamtP: praemienSumme(policy), gesamtE: erstattungenGesamt('erstattetKv'),
+  } : null;
+  return { offene, toepfe, bilanz, jahr };
+}
+function toepfeZeilen(toepfe){
+  return toepfe.map(t=>{
+    const verbraucht = t.limitBekannt ? (t.l.limitTyp==='anzahl' ? t.v.genutzt + '×' : fmtEUR(t.v.genutzt)) : fmtEUR(t.v.summe);
+    const rest = t.rest != null ? (t.l.limitTyp==='anzahl' ? t.rest + '×' : fmtEUR(t.rest)) : '–';
+    return { name:t.l.name, verbraucht, rest };
+  });
+}
+function openMaklerSheet(){
+  const d = maklerDaten();
+  const zeile = inv=>{
+    const f = fristStatus(inv);
+    return `<tr><td>${escapeHTML(inv.title||'Rechnung')}${inv.fuerWen ? ` <span class="p-sub">(${escapeHTML(inv.fuerWen)})</span>` : ''}</td>
+      <td>${fmtEUR(inv.amount)}</td><td>${escapeHTML(colByKey[inv.status].short)}</td>
+      <td>${f ? (f.stufe==='abgelaufen' ? 'abgelaufen' : 'in ' + f.tage + ' Tg.') : '–'}</td></tr>`;
+  };
+  const toepfeRows = toepfeZeilen(d.toepfe);
+
+  openSheet(`
+    <div class="sheet-head"><h2>Übersicht für den Makler</h2>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <p class="hint" style="margin-top:0">Zeig oder schick diese Übersicht deinem Versicherungsmakler.
+        Er sieht auf einen Blick, wo Erstattungen offen sind, wie viel vom Leistungstopf noch übrig ist
+        und ob Prämie und Deckung noch zueinander passen – ohne eigenen Zugang zu dieser App.</p>
+
+      <div class="grouplabel">Offene Vorgänge (${d.offene.length})</div>
+      ${d.offene.length ? `<div style="overflow-x:auto"><table class="simtab">
+        <tr><th>Rechnung</th><th>Betrag</th><th>Stand</th><th>Frist</th></tr>
+        ${d.offene.map(zeile).join('')}
+      </table></div>` : `<p class="hint">Aktuell keine offenen Vorgänge.</p>`}
+
+      ${toepfeRows.length ? `
+      <div class="grouplabel" style="margin-top:14px">Leistungstöpfe</div>
+      <div style="overflow-x:auto"><table class="simtab">
+        <tr><th>Leistung</th><th>Verbraucht</th><th>Übrig</th></tr>
+        ${toepfeRows.map(t=> `<tr><td>${escapeHTML(t.name)}</td><td>${t.verbraucht}</td><td>${t.rest}</td></tr>`).join('')}
+      </table></div>` : ''}
+
+      ${d.bilanz ? `
+      <div class="grouplabel" style="margin-top:14px">Prämien-Bilanz ${d.jahr}</div>
+      <div class="bzahlen">
+        <div><span class="bl">${d.jahr} gezahlt</span><b>${fmtEUR(d.bilanz.jahrP)}</b></div>
+        <div><span class="bl">${d.jahr} erstattet</span><b class="be">${fmtEUR(d.bilanz.jahrE)}</b></div>
+      </div>
+      <div class="bzahlen klein">
+        <div><span class="bl">gesamt gezahlt</span><b>${fmtEUR(d.bilanz.gesamtP)}</b></div>
+        <div><span class="bl">gesamt erstattet</span><b>${fmtEUR(d.bilanz.gesamtE)}</b></div>
+      </div>` : ''}
+
+      <p class="disclaimer" style="margin-top:14px">Automatisch aus deinen eigenen Einträgen erstellt,
+        keine Auskunft eines Versicherers. Verbindlich sind Polizze und Bescheide.</p>
+    </div>
+    <div class="sheet-foot">
+      <button id="mkCopy" class="grow">Text kopieren</button>
+      <button class="primary grow" id="mkPrint">Drucken / PDF</button>
+    </div>`);
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+
+  sheet.querySelector('#mkCopy').addEventListener('click', async ()=>{
+    const zeilen = ['Übersicht für den Makler – ' + fmtDateTime(new Date().toISOString()), '', 'Offene Vorgänge:'];
+    if(d.offene.length){
+      d.offene.forEach(inv=>{
+        const f = fristStatus(inv);
+        zeilen.push('- ' + (inv.title||'Rechnung') + (inv.fuerWen ? ' (' + inv.fuerWen + ')' : '') + ': ' +
+          fmtEUR(inv.amount) + ', Stand: ' + colByKey[inv.status].short +
+          (f ? ', Frist ' + (f.stufe==='abgelaufen' ? 'abgelaufen' : 'in ' + f.tage + ' Tagen') : ''));
+      });
+    } else zeilen.push('- keine –');
+    if(toepfeRows.length){
+      zeilen.push('', 'Leistungstöpfe:');
+      toepfeRows.forEach(t=> zeilen.push('- ' + t.name + ': verbraucht ' + t.verbraucht + ', übrig ' + t.rest));
+    }
+    if(d.bilanz){
+      zeilen.push('', 'Prämien-Bilanz ' + d.jahr + ':',
+        '- gezahlt ' + fmtEUR(d.bilanz.jahrP) + ', erstattet ' + fmtEUR(d.bilanz.jahrE));
+    }
+    await copyToClipboard(zeilen.join('\n'));
+    toast('In die Zwischenablage kopiert');
+  });
+
+  sheet.querySelector('#mkPrint').addEventListener('click', ()=>{
+    drucke(`
+      <h2 class="p-h2">Offene Vorgänge (${d.offene.length})</h2>
+      ${d.offene.length ? `<table class="p-tab p-multi">
+        <tr><th>Rechnung</th><th>Betrag</th><th>Stand</th><th>Frist</th></tr>
+        ${d.offene.map(zeile).join('')}
+      </table>` : '<p>Keine offenen Vorgänge.</p>'}
+      ${toepfeRows.length ? `
+      <h2 class="p-h2">Leistungstöpfe</h2>
+      <table class="p-tab p-multi">
+        <tr><th>Leistung</th><th>Verbraucht</th><th>Übrig</th></tr>
+        ${toepfeRows.map(t=> `<tr><td>${escapeHTML(t.name)}</td><td>${t.verbraucht}</td><td>${t.rest}</td></tr>`).join('')}
+      </table>` : ''}
+      ${d.bilanz ? `
+      <h2 class="p-h2">Prämien-Bilanz ${d.jahr}</h2>
+      <table class="p-tab">
+        <tr><td>${d.jahr} gezahlt</td><td>${fmtEUR(d.bilanz.jahrP)}</td></tr>
+        <tr><td>${d.jahr} erstattet</td><td>${fmtEUR(d.bilanz.jahrE)}</td></tr>
+        <tr><td>gesamt gezahlt</td><td>${fmtEUR(d.bilanz.gesamtP)}</td></tr>
+        <tr><td>gesamt erstattet</td><td>${fmtEUR(d.bilanz.gesamtE)}</td></tr>
+      </table>` : ''}
+      <p class="p-hinweis">Automatisch erstellt aus den Einträgen in Rechnungs-Tracker, keine Auskunft
+        eines Versicherers. Verbindlich sind Polizze und Bescheide.</p>`,
+      'Übersicht für den Makler');
+  });
 }
 
 /* ==================================================================

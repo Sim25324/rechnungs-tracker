@@ -445,6 +445,54 @@ button:disabled{ opacity:.5; }
   border:1px solid #fde68a; border-radius:10px; padding:11px 13px; margin:14px 0 0;
 }
 
+/* Bilanz */
+.bilanz{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
+.bhead{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.bhead b{ flex:1; font-size:15px; }
+.bzahlen{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.bzahlen.klein{ margin-top:8px; }
+.bzahlen > div{ background:#f8fafc; border-radius:10px; padding:9px 11px; }
+.bl{ display:block; font-size:11.5px; color:var(--sub); margin-bottom:2px; }
+.bzahlen b{ font-size:16px; font-weight:800; }
+.bzahlen.klein b{ font-size:14px; }
+.bp{ color:#b91c1c; }
+.be{ color:#15803d; }
+
+.jahre{ display:flex; flex-direction:column; gap:7px; }
+.jrow{ display:flex; align-items:center; gap:9px; font-size:12px; }
+.jj{ width:36px; flex:none; color:var(--sub); font-weight:700; }
+.jbars{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.jb{ display:block; height:8px; border-radius:8px; min-width:2px; }
+.jb.p{ background:#ef4444; }
+.jb.e{ background:#22c55e; }
+.jw{ flex:none; font-size:11px; color:#94a3b8; text-align:right; min-width:108px; }
+.blegende{ font-size:11.5px; color:var(--sub); margin:9px 0 0; display:flex; align-items:center; gap:5px; }
+.dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+.dot.p{ background:#ef4444; }
+.dot.e{ background:#22c55e; }
+.bsteigung{
+  margin-top:12px; font-size:12.5px; color:#334155; background:#f1f5f9;
+  border-radius:9px; padding:9px 11px;
+}
+.bsteigung.hoch{ background:#fef2f2; color:#991b1b; }
+.bsteigung b{ font-weight:800; }
+
+/* Erstattungsquoten */
+.quoten{ display:flex; flex-direction:column; gap:9px; }
+.qrow{ display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line);
+       border-radius:10px; padding:10px 12px; }
+.qn{ flex:none; width:104px; font-size:12.5px; font-weight:700; }
+.qbar{ flex:1; min-width:0; height:9px; background:#e2e8f0; border-radius:9px; overflow:hidden; }
+.qbar span{ display:block; height:100%; background:#0891b2; border-radius:9px; }
+.qv{ flex:none; text-align:right; }
+.qv b{ display:block; font-size:14px; font-weight:800; }
+.qv span{ font-size:10.5px; color:#94a3b8; }
+
+/* Fristenwarnung auf der Karte */
+.card .frist-tag{ font-size:11px; border-radius:6px; padding:3px 7px; font-weight:800; }
+.card .frist-tag.knapp{ background:#fef3c7; color:#92400e; }
+.card .frist-tag.abgelaufen{ background:#fecaca; color:#7f1d1d; }
+
 @media (min-width:768px){
   .lcard{ font-size:15px; }
   #view-deckung{ max-width:720px; margin:0 auto; }
@@ -780,26 +828,118 @@ function analysierePolizze(text){
   return gefunden;
 }
 
-/* ---- Berechnung: was ist verbraucht, was bleibt ---- */
-function periodeStart(policy, zeitraum){
-  const heute = new Date();
-  const beginn = policy && policy.beginn ? new Date(policy.beginn) : null;
-  if(zeitraum === 'einmalig') return new Date(2000,0,1);
-  const monate = (ZEITRAEUME[zeitraum]||ZEITRAEUME.jahr).monate;
-  if(!beginn){
-    /* Ohne Polizzenbeginn: Kalenderjahr, bzw. n Jahre zurueck */
-    return new Date(heute.getFullYear() - (monate/12 - 1), 0, 1);
+/* ==================================================================
+   PRAEMIEN UND BILANZ
+   Praemien werden als Zeitreihe gefuehrt: jeder Eintrag gilt ab seinem
+   Datum bis zum naechsten. So wird die jaehrliche Indexanpassung
+   sichtbar – der Punkt, an dem die Asymmetrie am staerksten wirkt,
+   weil einzelne Erhoehungen klein aussehen und sich still aufsummieren.
+   ================================================================== */
+const INTERVALLE = {
+  monatlich: { label:'monatlich',      proJahr:12 },
+  quartal:   { label:'vierteljährlich', proJahr:4 },
+  halbjahr:  { label:'halbjährlich',   proJahr:2 },
+  jahr:      { label:'jährlich',       proJahr:1 },
+};
+const monatsBetrag = e => (Number(e.betrag)||0) * (INTERVALLE[e.intervall]||INTERVALLE.monatlich).proJahr / 12;
+
+/* Summe aller Praemien zwischen zwei Zeitpunkten, monatsweise.
+   Gerechnet wird auf Jahr-Monat-Ganzzahlen statt mit Date-Objekten:
+   'YYYY-MM-DD' parst als UTC-Mitternacht, ein daraus gebautes lokales
+   Datum liegt in Mitteleuropa eine Stunde davor – dadurch fiel bei der
+   ersten Fassung jeweils der Startmonat aus der Summe. */
+const ymOf = iso => { const [y,m] = String(iso||'').split('-').map(Number);
+                      return (y||0) * 12 + ((m||1) - 1); };
+function praemienSumme(pol, vonISO, bisISO){
+  const liste = ((pol && pol.praemien) || []).filter(e=> e.ab)
+                  .slice().sort((a,b)=> a.ab.localeCompare(b.ab));
+  if(!liste.length) return 0;
+  const heute  = new Date();
+  const heuteISO = heute.getFullYear() + '-' + String(heute.getMonth()+1).padStart(2,'0') + '-01';
+  const vonYM = ymOf(vonISO || liste[0].ab);
+  const bisYM = ymOf(bisISO || heuteISO);
+  if(bisYM < vonYM) return 0;
+  let summe = 0;
+  for(let ym = vonYM; ym <= bisYM && ym - vonYM < 1200; ym++){
+    let gueltig = null;
+    for(const e of liste){ if(ymOf(e.ab) <= ym) gueltig = e; }
+    if(gueltig) summe += monatsBetrag(gueltig);
   }
-  /* Versicherungsjahr: letzter Jahrestag des Beginns */
-  const anker = new Date(beginn);
-  anker.setFullYear(heute.getFullYear());
-  if(anker > heute) anker.setFullYear(heute.getFullYear() - 1);
-  anker.setMonth(anker.getMonth() - (monate - 12));
-  return anker;
+  return summe;
+}
+const praemienImJahr = (pol, jahr) =>
+  praemienSumme(pol, jahr+'-01-01', Math.min(jahr,new Date().getFullYear()) === new Date().getFullYear()
+    ? new Date().toISOString().slice(0,10) : jahr+'-12-31');
+
+/* Was ist tatsaechlich zurueckgekommen – nicht was beantragt wurde. */
+const erstattetGesamt = inv => (Number(inv.erstattetOegk)||0) + (Number(inv.erstattetKv)||0);
+function erstattungenImJahr(jahr, feld){
+  return invoices.filter(i=> (i.date||'').slice(0,4) === String(jahr))
+                 .reduce((s,i)=> s + (Number(i[feld])||0), 0);
+}
+function erstattungenGesamt(feld){
+  return invoices.reduce((s,i)=> s + (Number(i[feld])||0), 0);
+}
+/* Erstattungsquote je Weg: was kam zurueck, gemessen am Rechnungsbetrag. */
+function quoteJeWeg(){
+  const out = {};
+  WEG_KEYS.forEach(w=>{
+    const rel = invoices.filter(i=> (i.weg||'wahlarzt') === w && Number(i.amount) > 0 && erstattetGesamt(i) > 0);
+    if(!rel.length) return;
+    const ein = rel.reduce((s,i)=> s + Number(i.amount), 0);
+    const zur = rel.reduce((s,i)=> s + erstattetGesamt(i), 0);
+    out[w] = { n: rel.length, ein, zur, quote: ein ? Math.round(zur/ein*100) : 0 };
+  });
+  return out;
+}
+
+/* ==================================================================
+   FRISTENWAECHTER
+   ÖGK: 42 Monate ab Leistungsdatum (quelle: oegk.at). Private
+   Versicherer setzen eigene, oft deutlich kuerzere Fristen – deshalb
+   pro Polizze konfigurierbar.
+   ================================================================== */
+const FRIST_OEGK_MONATE = 42;
+function fristStatus(inv){
+  if(!inv.date || inv.status === 'abgeschlossen') return null;
+  const monate = (inv.status === 'bezahlt' || inv.status === 'oegk_eingereicht')
+    ? FRIST_OEGK_MONATE
+    : ((policy && Number(policy.fristMonate)) || FRIST_OEGK_MONATE);
+  const ende = new Date(inv.date);
+  ende.setMonth(ende.getMonth() + monate);
+  const tage = Math.floor((ende - Date.now()) / 86400000);
+  if(tage < 0)   return { stufe:'abgelaufen', tage, ende };
+  if(tage <= 90) return { stufe:'knapp',      tage, ende };
+  return null;
+}
+
+/* ---- Berechnung: was ist verbraucht, was bleibt ---- */
+/* Liefert den Periodenbeginn als 'YYYY-MM-DD'. Reine Stringrechnung,
+   damit keine Zeitzone hineinspielt (siehe Hinweis bei praemienSumme). */
+function periodeStart(policy, zeitraum){
+  const heute  = new Date();
+  const hJ = heute.getFullYear();
+  const hM = heute.getMonth() + 1;
+  const hT = heute.getDate();
+  if(zeitraum === 'einmalig') return '2000-01-01';
+  const monate = (ZEITRAEUME[zeitraum]||ZEITRAEUME.jahr).monate;
+  const jahre  = Math.max(1, monate/12);
+
+  if(!policy || !policy.beginn){
+    /* Ohne Polizzenbeginn: Kalenderjahr, bei Mehrjahrestoepfen n Jahre zurueck */
+    return (hJ - (jahre - 1)) + '-01-01';
+  }
+  /* Versicherungsjahr: letzter Jahrestag des Polizzenbeginns */
+  const [, bM, bT] = policy.beginn.split('-').map(Number);
+  let ankerJ = hJ;
+  if(hM < bM || (hM === bM && hT < bT)) ankerJ -= 1;   // Jahrestag heuer noch nicht erreicht
+  ankerJ -= (jahre - 1);
+  return ankerJ + '-' + String(bM).padStart(2,'0') + '-' + String(bT).padStart(2,'0');
 }
 function verbrauchFuer(leistung, policy, alleUsage){
   const ab = periodeStart(policy, leistung.zeitraum);
-  const rel = alleUsage.filter(u=> u.leistungId === leistung.id && new Date(u.datum) >= ab);
+  /* Stringvergleich: 'YYYY-MM-DD' sortiert lexikografisch korrekt. */
+  const rel = alleUsage.filter(u=> u.leistungId === leistung.id && String(u.datum||'') >= ab);
   const summe = rel.reduce((s,u)=> s + (Number(u.betrag)||0), 0);
   const anzahl = rel.reduce((s,u)=> s + (Number(u.menge)||1), 0);
   return { ab, eintraege: rel, summe, anzahl,
@@ -826,6 +966,9 @@ const INFO = {
   move: '<b>Aktionen zur Karte</b><br>Beleg an die ÖGK- oder Versicherungs-App weitergeben, oder den Status von Hand setzen. Am Desktop funktioniert zusätzlich Ziehen mit der Maus.',
   senden: '<b>Warum „speichern“ und nicht „senden“</b><br>Die ÖGK- und die Generali-App nehmen keine geteilten Dateien entgegen. Sie holen den Beleg stattdessen selbst über ihren eigenen Dateiauswähler – deshalb stehen sie im Teilen-Dialog von Android gar nicht drin.<br><br>Diese App legt den Beleg darum unter einem eindeutigen Namen in <b>Downloads</b> ab. Dort findest du ihn im Auswähler beider Apps als obersten Eintrag.<br><br>Bezeichnung, Datum und Betrag liegen gleichzeitig in der Zwischenablage – für die Formularfelder.<br><br>Das <b>Einreichen selbst bestätigst du dort</b>. Die Anmeldung mit ID Austria bzw. deinem Kundenkonto bleibt bei dir; diese App bekommt deine Zugangsdaten nie zu sehen.',
   teilen: '<b>Teilen</b><br>Für alles andere: Mail an dich selbst, Cloud-Speicher, Nachricht an die Ordination. Für die ÖGK- und Versicherungs-App nimm stattdessen „speichern“ – die stehen im Teilen-Dialog nicht zur Auswahl.',
+  erstattung: '<b>Wozu diese Felder</b><br>Trag ein, was <b>tatsächlich</b> zurückgekommen ist – nicht was du beantragt hast. Daraus entsteht deine persönliche Erstattungsquote je Belegart.<br><br>Das ist die Zahl, die der Versicherer über dich längst hat und du bisher nicht. Wird ein Posten gekürzt, notier die Begründung: Muster werden erst über mehrere Fälle sichtbar.',
+  praemie: '<b>Wie gerechnet wird</b><br>Jeder Prämieneintrag gilt ab seinem Datum bis zum nächsten. Die App rechnet monatsweise hoch und kommt so auf die Summe über die gesamte Laufzeit.<br><br>Bei jeder Erhöhung einen neuen Eintrag anlegen – dann zeigt die App die Entwicklung in Prozent. Einzelne Anpassungen wirken klein; erst über die Jahre sieht man, was sie ausmachen.',
+  frist: '<b>Fristen</b><br>Bei der ÖGK kannst du eine Wahlarztrechnung <b>42 Monate ab Leistungsdatum</b> einreichen. Private Versicherer setzen eigene, oft deutlich kürzere Fristen – trag sie unter Prämien ein.<br><br>Die App warnt 90 Tage vorher. Eine verfallene Rechnung ist verschenktes Geld, und erinnert wirst du von niemandem.',
   verbrauch: '<b>Wie die App zählt</b><br>Jeder Eintrag zieht vom Limit ab, solange er im aktuellen Zeitraum liegt. Das Versicherungsjahr richtet sich nach dem Beginn in der Polizze – ist keiner hinterlegt, rechnet die App mit dem Kalenderjahr.<br><br>Du kannst Beträge von Hand eintragen oder direkt aus einer erfassten Rechnung übernehmen.<br><br><b>Wichtig:</b> Die App kennt nur, was du ihr sagst. Sie hat keinen Zugang zu deinem Versicherungskonto und weiß nicht, was dort tatsächlich verbucht ist.',
   qr: '<b>QR-Code auf der Rechnung</b><br>Trägt der Beleg einen Zahlungs-QR-Code („Zahlen mit Code“), liest die App Betrag, Empfänger und Referenz exakt daraus – deutlich zuverlässiger als aus dem Bild geraten.<br><br>Ohne Code greift automatisch die Texterkennung.',
   docs: '<b>Warum mehrere Dokumente</b><br>Ein Vorgang braucht je nach Station verschiedene Unterlagen:<br><br><b>Für die ÖGK:</b> Rechnung <i>und</i> Zahlungsnachweis. Der fehlende Zahlungsnachweis ist der häufigste Ablehnungsgrund.<br><br><b>Für die private Versicherung:</b> Rechnung <i>und</i> der ÖGK-Bescheid. Den gibt es erst Wochen später – deshalb wächst die Karte mit dem Vorgang mit.<br><br>Die App prüft vor jedem Upload, ob alles beisammen ist.',
@@ -1377,6 +1520,9 @@ function renderCard(inv, col){
         ${ueberfaellig(inv) ? `<span class="late-tag">🔔 seit ${ueberfaellig(inv)} Tagen – nachfragen</span>`
           : (liegezeit(inv) ? `<span class="wait-tag">⏳ ${liegezeit(inv)}</span>` : '')}
         ${inv.needsReview ? `<span class="review-tag">⚠ prüfen</span>` : ''}
+        ${fristStatus(inv) ? `<span class="frist-tag ${fristStatus(inv).stufe}">${
+          fristStatus(inv).stufe === 'abgelaufen' ? '⛔ Frist abgelaufen'
+          : '⏰ Frist in ' + fristStatus(inv).tage + ' Tagen'}</span>` : ''}
       </span>
       ${kartenHinweis(inv)}
     </button>
@@ -1855,6 +2001,23 @@ function openEditor(id, presetStatus){
           ${SEND_TARGETS.map(t=>`<button type="button" data-send="${t.key}" ${inv.fileData?'':'disabled'}>
             <span class="ic">${t.icon}</span>${escapeHTML(t.key==='oegk'?'Für ÖGK':'Für Versicherung')}</button>`).join('')}
         </div></div>` : ''}
+      <div class="grouplabel">Was kam zurück?
+        <button class="info-btn" data-info="erstattung" aria-label="Wozu diese Felder?">i</button></div>
+      <div class="row2">
+        <div class="field"><label>Von der ÖGK erstattet (€)</label>
+          <input type="number" inputmode="decimal" step="0.01" id="f-eoegk"
+                 value="${inv && inv.erstattetOegk != null ? inv.erstattetOegk : ''}" placeholder="0,00"></div>
+        <div class="field"><label>Von der privaten KV (€)</label>
+          <input type="number" inputmode="decimal" step="0.01" id="f-ekv"
+                 value="${inv && inv.erstattetKv != null ? inv.erstattetKv : ''}" placeholder="0,00"></div>
+      </div>
+      <div class="field">
+        <label>Gekürzt oder abgelehnt? Begründung</label>
+        <input type="text" id="f-abl" value="${inv ? escapeHTML(inv.ablehnung||'') : ''}"
+               placeholder="Wortlaut aus dem Schreiben">
+        <p class="hint" id="diffHint"></p>
+      </div>
+
       <div class="field">
         <label>Notiz</label>
         <textarea id="f-note" placeholder="z. B. Belegnummer, Frist ...">${inv ? escapeHTML(inv.note||'') : ''}</textarea>
@@ -1893,6 +2056,22 @@ function openEditor(id, presetStatus){
   };
   wegSel.addEventListener('change', zeigeWegHinweis);
   zeigeWegHinweis();
+
+  /* Live-Differenz: was blieb an mir haengen */
+  const rechneDiff = ()=>{
+    const h = sheet.querySelector('#diffHint');
+    if(!h) return;
+    const a = Number(sheet.querySelector('#f-amount').value) || 0;
+    const r = (Number(sheet.querySelector('#f-eoegk').value)||0) + (Number(sheet.querySelector('#f-ekv').value)||0);
+    if(!a || !r){ h.textContent = ''; return; }
+    const rest = a - r;
+    h.innerHTML = 'Selbst getragen: <b>' + fmtEUR(rest) + '</b> · zurück: ' +
+                  Math.round(r/a*100) + ' % des Rechnungsbetrags';
+  };
+  ['#f-amount','#f-eoegk','#f-ekv'].forEach(sel=>{
+    const el = sheet.querySelector(sel); if(el) el.addEventListener('input', rechneDiff);
+  });
+  rechneDiff();
 
   sheet.querySelector('#btnSave').addEventListener('click', ()=> saveEditor(id));
   if(inv) sheet.querySelector('#btnDelete').addEventListener('click', ()=> deleteInvoice(id));
@@ -2007,6 +2186,9 @@ async function saveEditor(id){
   const date   = document.getElementById('f-date').value;
   const status = document.getElementById('f-status').value;
   const weg    = (document.getElementById('f-weg')||{}).value || 'wahlarzt';
+  const eOegk  = document.getElementById('f-eoegk').value;
+  const eKv    = document.getElementById('f-ekv').value;
+  const ablehnung = document.getElementById('f-abl').value.trim();
   const note   = document.getElementById('f-note').value;
   const now    = new Date().toISOString();
 
@@ -2014,7 +2196,9 @@ async function saveEditor(id){
     const inv = invoices.find(i=> i.id === id);
     const statusChanged = inv.status !== status;
     Object.assign(inv, { title, amount, date, note, status, weg, needsReview:false, updatedAt:now,
-                         reference: pendingRef, iban: pendingIban });
+                         reference: pendingRef, iban: pendingIban,
+                         erstattetOegk: eOegk === '' ? null : Number(eOegk),
+                         erstattetKv:   eKv   === '' ? null : Number(eKv), ablehnung });
     inv.docs = pendingDocs;
     const haupt = pendingDocs.find(d=> d.kind === 'rechnung') || pendingDocs[0];
     inv.fileName = haupt ? haupt.name : ''; inv.fileType = haupt ? haupt.type : ''; inv.fileData = haupt ? haupt.data : '';
@@ -2024,6 +2208,8 @@ async function saveEditor(id){
   } else {
     await dbPut({
       id: uid(), title, amount, date, note, status, weg,
+      erstattetOegk: eOegk === '' ? null : Number(eOegk),
+      erstattetKv:   eKv   === '' ? null : Number(eKv), ablehnung,
       docs: pendingDocs,
       fileName: (pendingDocs[0]||{}).name || '',
       fileType: (pendingDocs[0]||{}).type || '',
@@ -2233,6 +2419,9 @@ function renderDeckung(){
       <button class="icon-btn" id="polEdit" aria-label="Polizze bearbeiten">✎</button>
     </div>
 
+    ${bilanzBlock()}
+
+    <div class="grouplabel">Leistungstöpfe</div>
     ${leistungen.length === 0 ? `
       <div class="leer klein">
         <p>Noch keine Leistungen erfasst. Füge sie aus dem Katalog hinzu oder lies die Polizze ein.</p>
@@ -2245,10 +2434,99 @@ function renderDeckung(){
       Versicherer nach, bevor du eine Leistung in Anspruch nimmst.</p>`;
 
   el.querySelector('#polEdit').addEventListener('click', openPolicySheet);
+  const pb = el.querySelector('#praemBtn');
+  if(pb) pb.addEventListener('click', openPraemienSheet);
   const kb = el.querySelector('#katalogBtn');
   if(kb) kb.addEventListener('click', openKatalogSheet);
   el.querySelectorAll('[data-leistung]').forEach(b=>
     b.addEventListener('click', ()=> openLeistungSheet(b.dataset.leistung)));
+}
+
+/* ---------- Bilanz: gezahlt gegen zurueckbekommen ---------- */
+function bilanzBlock(){
+  const praemien = (policy && policy.praemien) || [];
+  if(!praemien.length){
+    return `<div class="leer klein" style="margin-bottom:12px">
+      <p style="margin-bottom:12px">Trage deine Prämie ein, um zu sehen, was du über die Laufzeit
+         gezahlt hast – und wie sich das zu den Erstattungen verhält.</p>
+      <button class="primary" id="praemBtn">💶 Prämie erfassen</button></div>`;
+  }
+  const jahr    = new Date().getFullYear();
+  const startJ  = Number(praemien.slice().sort((a,b)=> a.ab.localeCompare(b.ab))[0].ab.slice(0,4));
+  const gesamtP = praemienSumme(policy);
+  const gesamtE = erstattungenGesamt('erstattetKv');
+  const jahrP   = praemienImJahr(policy, jahr);
+  const jahrE   = erstattungenImJahr(jahr, 'erstattetKv');
+
+  const jahre = [];
+  for(let j = startJ; j <= jahr; j++) jahre.push(j);
+  const maxWert = Math.max(1, ...jahre.map(j=> Math.max(praemienImJahr(policy,j), erstattungenImJahr(j,'erstattetKv'))));
+
+  /* Praemienentwicklung: erster gegen aktuellen Monatswert */
+  const sortiert = praemien.slice().sort((a,b)=> a.ab.localeCompare(b.ab));
+  const ersterM  = monatsBetrag(sortiert[0]);
+  const aktM     = monatsBetrag(sortiert[sortiert.length-1]);
+  const steigung = ersterM > 0 ? Math.round((aktM/ersterM - 1) * 100) : 0;
+
+  return `
+    <div class="bilanz">
+      <div class="bhead">
+        <b>Bilanz seit ${startJ}</b>
+        <button class="icon-btn" id="praemBtn" aria-label="Prämien bearbeiten">✎</button>
+      </div>
+      <div class="bzahlen">
+        <div><span class="bl">gezahlt gesamt</span><b class="bp">${fmtEUR(gesamtP)}</b></div>
+        <div><span class="bl">erstattet gesamt</span><b class="be">${fmtEUR(gesamtE)}</b></div>
+      </div>
+      <div class="bzahlen klein">
+        <div><span class="bl">${jahr} gezahlt</span><b>${fmtEUR(jahrP)}</b></div>
+        <div><span class="bl">${jahr} erstattet</span><b>${fmtEUR(jahrE)}</b></div>
+      </div>
+
+      <div class="grouplabel" style="margin:14px 0 8px">Jahr für Jahr</div>
+      <div class="jahre">
+        ${jahre.slice(-8).map(j=>{
+          const p = praemienImJahr(policy,j), e = erstattungenImJahr(j,'erstattetKv');
+          return `<div class="jrow">
+            <span class="jj">${j}</span>
+            <span class="jbars">
+              <span class="jb p" style="width:${Math.round(p/maxWert*100)}%"></span>
+              <span class="jb e" style="width:${Math.round(e/maxWert*100)}%"></span>
+            </span>
+            <span class="jw">${fmtEUR(p)} / ${fmtEUR(e)}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      <p class="blegende"><span class="dot p"></span>Prämie &nbsp; <span class="dot e"></span>Erstattung</p>
+
+      ${sortiert.length > 1 ? `<div class="bsteigung ${steigung>0?'hoch':''}">
+        Prämienentwicklung: ${fmtEUR(ersterM)} → ${fmtEUR(aktM)} im Monat
+        ${steigung !== 0 ? `<b>${steigung > 0 ? '+' : ''}${steigung} %</b> seit ${sortiert[0].ab.slice(0,4)}` : ''}
+      </div>` : ''}
+
+      <p class="disclaimer" style="margin-top:12px">Diese Gegenüberstellung sagt <b>nicht</b>, ob sich
+        die Versicherung lohnt. Du bezahlst Absicherung gegen den teuren Fall, nicht einzelne
+        Erstattungen. Aussagekräftig ist sie für eine andere Frage: ob Preis und Deckung noch
+        zueinander passen – besonders wenn die Prämie steigt und die Leistungen gleich bleiben.</p>
+    </div>
+    ${quotenBlock()}`;
+}
+
+function quotenBlock(){
+  const q = quoteJeWeg();
+  const keys = Object.keys(q);
+  if(!keys.length) return '';
+  return `
+    <div class="grouplabel">Erstattungsquote aus deinen Daten</div>
+    <div class="quoten">
+      ${keys.map(k=>`<div class="qrow">
+        <span class="qn">${WEGE[k].icon} ${escapeHTML(WEGE[k].kurz)}</span>
+        <span class="qbar"><span style="width:${Math.min(100,q[k].quote)}%"></span></span>
+        <span class="qv"><b>${q[k].quote} %</b><span>${q[k].n} Rechnungen</span></span>
+      </div>`).join('')}
+    </div>
+    <p class="hint">Anteil, der von Rechnungsbetrag zurückkam – ÖGK und private Versicherung zusammen.
+      Beruht nur auf Rechnungen, bei denen du eine Erstattung eingetragen hast.</p>`;
 }
 
 function leistungKarte(l){
@@ -2277,7 +2555,7 @@ function leistungKarte(l){
           <span>${rest !== null ? '<b>' + wert(rest) + '</b> übrig' : ''}</span>
         </div>
         <div class="lmeta">Limit ${wert(l.limit)} ${escapeHTML(ZEITRAEUME[l.zeitraum].label)}
-          · seit ${fmtDate(v.ab.toISOString().slice(0,10))} · ${v.eintraege.length} Eintrag${v.eintraege.length===1?'':'e'}</div>`
+          · seit ${fmtDate(v.ab)} · ${v.eintraege.length} Eintrag${v.eintraege.length===1?'':'e'}</div>`
       : `
         <div class="lzahlen"><span><b>${fmtEUR(v.summe)}</b> erfasst</span></div>
         <div class="lmeta">${l.limitTyp === 'prozent'
@@ -2519,6 +2797,68 @@ function openVerbrauchSheet(l){
     const i = invoices.find(x=> x.id === b.dataset.inv);
     if(i) speichern(i.title||'Rechnung', l.limitTyp==='anzahl' ? 1 : i.amount, i.date, i.id);
   }));
+}
+
+/* ---------- Praemien als Zeitreihe pflegen ---------- */
+function openPraemienSheet(){
+  const p = policy || { id: uid(), versicherer:'', tarif:'', beginn:'', leistungen:[], docs:[], praemien:[] };
+  const liste = (p.praemien||[]).slice().sort((a,b)=> b.ab.localeCompare(a.ab));
+  openSheet(`
+    <div class="sheet-head"><h2>Prämien</h2>
+      <button class="info-btn" data-info="praemie" aria-label="Wie wird gerechnet?">i</button>
+      <button class="icon-btn" data-close aria-label="Schließen">✕</button></div>
+    <div class="sheet-body">
+      <p class="hint" style="margin-top:0">Jeder Eintrag gilt <b>ab</b> seinem Datum bis zum nächsten.
+        Trag bei jeder Erhöhung einen neuen Eintrag ein – so wird die Entwicklung sichtbar.</p>
+
+      <div class="grouplabel">Neuer Eintrag</div>
+      <div class="row2">
+        <div class="field"><label>Gültig ab</label>
+          <input type="date" id="pr-ab" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="field"><label>Betrag (€)</label>
+          <input type="number" inputmode="decimal" step="0.01" id="pr-betrag" placeholder="0,00"></div>
+      </div>
+      <div class="field"><label>Zahlungsweise</label>
+        <select id="pr-int">${Object.keys(INTERVALLE).map(k=>
+          `<option value="${k}" ${k==='monatlich'?'selected':''}>${escapeHTML(INTERVALLE[k].label)}</option>`).join('')}</select></div>
+      <div class="statuslist"><button type="button" id="prAdd" style="--sc:#16a34a;--sbg:#f0fdf4">➕ Eintragen</button></div>
+
+      ${liste.length ? `<div class="grouplabel">Verlauf</div>
+        <ul class="vliste">${liste.map(e=>`
+          <li><span>ab ${fmtDate(e.ab)} · ${escapeHTML(INTERVALLE[e.intervall].label)}</span>
+              <b>${fmtEUR(e.betrag)}</b>
+              <button type="button" class="docbtn del" data-prdel="${e.id}" aria-label="Löschen">✕</button></li>`).join('')}
+        </ul>` : ''}
+
+      <div class="grouplabel">Einreichfrist der privaten Versicherung</div>
+      <div class="field">
+        <label>Monate ab Leistungsdatum</label>
+        <input type="number" inputmode="numeric" id="pr-frist" value="${p.fristMonate||''}" placeholder="z. B. 12 – steht in den Bedingungen">
+        <p class="hint">Bei der ÖGK gelten fix 42 Monate. Private Versicherer setzen eigene, oft deutlich
+          kürzere Fristen. Trag sie ein, dann warnt die App rechtzeitig.</p>
+      </div>
+    </div>
+    <div class="sheet-foot"><button class="primary grow" id="prSave">Fertig</button></div>`);
+
+  sheet.querySelector('[data-close]').addEventListener('click', closeSheet);
+  sheet.querySelector('#prAdd').addEventListener('click', async ()=>{
+    const betrag = Number(sheet.querySelector('#pr-betrag').value);
+    const ab     = sheet.querySelector('#pr-ab').value;
+    if(!betrag || !ab){ toast('Betrag und Datum nötig'); return; }
+    p.praemien = (p.praemien||[]).concat([{ id: uid(), ab, betrag,
+      intervall: sheet.querySelector('#pr-int').value }]);
+    await stPut('policies', p); await loadDeckung(); openPraemienSheet();
+  });
+  sheet.querySelectorAll('[data-prdel]').forEach(b=> b.addEventListener('click', async ()=>{
+    p.praemien = (p.praemien||[]).filter(x=> x.id !== b.dataset.prdel);
+    await stPut('policies', p); await loadDeckung(); openPraemienSheet();
+  }));
+  sheet.querySelector('#prSave').addEventListener('click', async ()=>{
+    const f = Number(sheet.querySelector('#pr-frist').value);
+    p.fristMonate = f > 0 ? f : null;
+    await stPut('policies', p);
+    closeSheet(); await loadDeckung();
+  });
 }
 
 function openPolicySheet(){

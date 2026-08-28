@@ -210,6 +210,7 @@ button:disabled{ opacity:.5; }
 }
 .col-foot{ padding:0 10px 10px; }
 .col-foot button{ width:100%; border-style:dashed; color:var(--sub); }
+.addleistung{ width:100%; border-style:dashed; color:var(--sub); margin-top:4px; }
 
 /* ---------- Karte ---------- */
 .card{
@@ -789,9 +790,8 @@ body.printing #printarea{ display:block; }
 <nav class="mainnav" id="mainnav" role="tablist">
   <button class="mainbtn" data-view="uebersicht" role="tab" aria-selected="true"><span class="mbi">🏠</span><span class="mbl">Übersicht</span></button>
   <button class="mainbtn" data-view="rechnungen" role="tab" aria-selected="false"><span class="mbi">🧾</span><span class="mbl">Rechnungen</span></button>
-  <button class="fab" id="btnAdd" hidden aria-label="Neue Rechnung anlegen" title="Neue Rechnung anlegen">+</button>
-  <button class="fab" id="btnLeistung" hidden aria-label="Neue Leistung anlegen" title="Neue Leistung anlegen">+</button>
-  <button class="mainbtn" data-view="deckung"    role="tab" aria-selected="false"><span class="mbi">🛡</span><span class="mbl">Deckung</span></button>
+  <button class="fab" id="btnAdd" aria-label="Neue Rechnung anlegen" title="Neue Rechnung anlegen">+</button>
+  <button class="mainbtn" data-view="deckung"    role="tab" aria-selected="false"><span class="mbi">🛡</span><span class="mbl">Versicherung</span></button>
   <button class="mainbtn" data-view="mehr"       role="tab" aria-selected="false"><span class="mbi">⋯</span><span class="mbl">Mehr</span></button>
 </nav>
 
@@ -1011,7 +1011,10 @@ function findeLimitImText(zeile, zeileHatLeistungswort){
         Signal, der Prozentsatz daneben ist meist der Selbstbehalt. */
   m = t.match(/(?:bis zu|max(?:imal)?\.?|höchstens|Höchstbetrag(?:\s*von)?|begrenzt mit|Limit(?:\s*von)?)[^\d%]{0,18}(?:(?:EUR|€)\s*(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?)|(\d{1,3}(?:[.\s]\d{3})*,\d{2}))/i)
    || t.match(/(?:EUR|€)\s*(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?)\s*(?:,-{1,2}|-{1,2})?\s*(?:pro|je|p\.a\.|jährlich|im\s+Jahr|alle\s+\d+\s*Jahre|innerhalb)/i)
-   || t.match(/(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?)\s*(?:EUR|€)\s*(?:pro|je|p\.a\.|jährlich|alle\s+\d+\s*Jahre)/i);
+   || t.match(/(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?)\s*(?:EUR|€)\s*(?:pro|je|p\.a\.|jährlich|alle\s+\d+\s*Jahre)/i)
+   /* Tabellenzeile ohne jedes Waehrungszeichen: "Zahnersatz 500,00 jaehrlich" –
+      nur mit striktem Komma-Cent-Format und Zeitwort, sonst zu unsicher. */
+   || t.match(/(\d{1,3}(?:[.\s]\d{3})*,\d{2})\s*(?:pro|je|p\.a\.|jährlich|im\s+Jahr|alle\s+\d+\s*Jahre)/i);
   if(m){
     const v = zahlAus(m[1] || m[2]);
     if(v != null && v > 0 && v < 1000000) return { typ:'betrag', wert:v };
@@ -1062,6 +1065,24 @@ function findeWartezeit(t){
    Polizzennummer und – neu – die Praemie samt Zahlungsweise.
    ================================================================== */
 const VERSICHERER_RE = /\b(Generali|UNIQA|Merkur|Wiener\s+St[äa]dtische|Allianz|Donau\s+Versicherung|Helvetia|Zurich|Muki|Grazer\s+Wechselseitige|GRAWE|Ergo|Nürnberger|Wüstenrot|Sparkassen\s+Versicherung)\b/i;
+/* Rueckfall fuer Versicherer, die nicht auf der Liste stehen: die
+   Kopfzeile des Dokuments bewerten wie beim Rechnungsaussteller –
+   ohne bekannten Namen sonst leer statt geraten. */
+function extractVersichererFallback(zeilen){
+  const kandidaten = (zeilen||[]).map(l=> String(l||'').trim()).filter(Boolean).slice(0,15);
+  let best = null, bestScore = -99;
+  kandidaten.forEach((z, i)=>{
+    if(z.length < 4 || z.length > 70) return;
+    let score = 0;
+    if(/versicherung(?:s-?ag)?\b|vers\.?-?ag\b|assurance|versicherungsverein/i.test(z)) score += 8;
+    if(/\bag\b|gruppe|gmbh|se\b/i.test(z)) score += 2;
+    if(/polizze|versicherungsschein|antrag|angebot|vertrags-?nr|kunden-?nr|iban|tel\.|www\.|@|straße|straße/i.test(z)) score -= 8;
+    if(/^\d/.test(z)) score -= 4;
+    score += Math.max(0, 3 - i);
+    if(score > bestScore){ bestScore = score; best = z; }
+  });
+  return bestScore > 1 ? best.replace(/\s{2,}/g,' ').slice(0,60) : '';
+}
 
 function findeDatumNach(text, labels, nurTagMonat){
   for(const lab of labels){
@@ -1130,6 +1151,7 @@ function findePraemie(text, zeilen){
 
 function polizzenKopf(text){
   const vers = String(text).match(VERSICHERER_RE);
+  const versName = vers ? vers[1].replace(/\s+/g,' ') : extractVersichererFallback(String(text).split(/\r?\n/));
   const beginn = findeDatumNach(text, [
     'Versicherungsbeginn','Vertragsbeginn','Beginn\\s+der\\s+Versicherung',
     'Versicherungsdauer\\s*(?:von|ab)','Beginn'
@@ -1137,7 +1159,7 @@ function polizzenKopf(text){
   const hf = findeDatumNach(text, ['Hauptfälligkeit','Hauptfälligkeitstag','jährlich\\s+am'], true);
   const nr = String(text).match(/(?:Polizzen-?\s?(?:nummer|nr)\.?|Versicherungsschein-?\s?Nr\.?|Vertrags-?\s?(?:nummer|nr)\.?)\s*:?\s*([A-Za-z0-9][A-Za-z0-9\/\-.]{3,24})/i);
   return {
-    versicherer: vers ? vers[1].replace(/\s+/g,' ') : '',
+    versicherer: versName,
     beginn: beginn || '',
     hauptfaelligkeit: hf ? `${new Date().getFullYear()}-${String(hf.monat).padStart(2,'0')}-${String(hf.tag).padStart(2,'0')}` : '',
     polizzennr: nr ? nr[1].replace(/[.\-]$/,'') : '',
@@ -1857,6 +1879,13 @@ function normalizeAmount(raw){
    positiv. Erst dann wird ausgewaehlt.
    ================================================================== */
 const AMOUNT_RE = /(?:€|EUR)\s*(\d{1,3}(?:[.\s]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)|(\d{1,3}(?:[.\s]\d{3})*(?:[.,]\d{1,2})?|\d+[.,]\d{1,2})\s*(?:€|EUR)/gi;
+/* Rueckfallebene ohne Waehrungszeichen: viele Honorarnoten/Tabellen
+   nennen "EUR" nur einmal in der Spaltenueberschrift und schreiben
+   jeden Betrag darunter nackt hin. Nur der eindeutige oesterreichische
+   Kommastil (Komma + genau zwei Nachkommastellen) zaehlt hier als
+   Kandidat – ein blosses "20" waere zu leicht mit einer Menge, einem
+   Datum oder einer Belegnummer zu verwechseln. */
+const AMOUNT_BARE_RE = /\b(\d{1,3}(?:[.\s]\d{3})*,\d{2}|\d+,\d{2})\b/g;
 function extractAmount(text, lines){
   const zeilen = (lines && lines.length ? lines : String(text||'').split(/\r?\n/)).map(z=> String(z||''));
   const kandidaten = [];
@@ -1871,12 +1900,24 @@ function extractAmount(text, lines){
     if(/erstatt|rückersatz|refund|kassenanteil/.test(l))                                              score -= 6;
     score += Math.round((i / Math.max(1, zeilen.length)) * 3);   // weiter unten = eher Summe
 
-    let m;
+    let m, getroffen = false;
     AMOUNT_RE.lastIndex = 0;
     while((m = AMOUNT_RE.exec(z)) !== null){
       const n = normalizeAmount(m[1] || m[2]);
       if(isNaN(n) || n <= 0 || n >= 100000) continue;
       kandidaten.push({ n, score });
+      getroffen = true;
+    }
+    /* Erst wenn diese Zeile keinen Euro-markierten Betrag hatte, den
+       waehrungslosen Kandidaten probieren – leicht abgewertet, damit
+       ein echter Euro-Treffer bei Gleichstand immer den Vorzug hat. */
+    if(!getroffen){
+      AMOUNT_BARE_RE.lastIndex = 0;
+      while((m = AMOUNT_BARE_RE.exec(z)) !== null){
+        const n = normalizeAmount(m[1]);
+        if(isNaN(n) || n <= 0 || n >= 100000) continue;
+        kandidaten.push({ n, score: score - 1 });
+      }
     }
   });
 
@@ -2762,6 +2803,23 @@ function openEditor(id, presetStatus){
     </div>
     <div class="sheet-body">
       <div class="field">
+        <label>Beleg erfassen
+          <button class="info-btn" data-info="docs" aria-label="Welche Dokumente brauche ich?">i</button>
+          <button class="info-btn" data-info="qr" aria-label="QR-Code auf der Rechnung">QR</button>
+        </label>
+        <p class="hint" style="margin:0 0 8px">Foto oder PDF zuerst – Bezeichnung, Betrag und Datum werden daraus vorausgefüllt.</p>
+        <div class="filepick">
+          <button type="button" id="btnCam"><span class="ic">📷</span>Foto aufnehmen</button>
+          <button type="button" id="btnFile"><span class="ic">📄</span>Datei wählen</button>
+        </div>
+        <input type="file" id="f-cam"  accept="image/*" capture="environment" hidden>
+        <input type="file" id="f-file" accept="application/pdf,image/*" multiple hidden>
+        <div id="docList"></div>
+        <div id="refWrap"></div>
+        <div id="analyze-status"></div>
+        <div id="bedarfWrap"></div>
+      </div>
+      <div class="field">
         <label>Bezeichnung</label>
         <input type="text" id="f-title" value="${inv ? escapeHTML(inv.title) : ''}" placeholder="z. B. Dr. Müller – Kontrolle">
       </div>
@@ -2786,22 +2844,6 @@ function openEditor(id, presetStatus){
         <label>Status</label>
         <select id="f-status">${COLUMNS.map(c=>
           `<option value="${c.key}" ${c.key===(inv?inv.status:(presetStatus||'bezahlt'))?'selected':''}>${escapeHTML(c.title)}</option>`).join('')}</select>
-      </div>
-      <div class="field">
-        <label>Dokumente
-          <button class="info-btn" data-info="docs" aria-label="Welche Dokumente brauche ich?">i</button>
-          <button class="info-btn" data-info="qr" aria-label="QR-Code auf der Rechnung">QR</button>
-        </label>
-        <div id="docList"></div>
-        <div class="filepick" style="margin-top:8px">
-          <button type="button" id="btnCam"><span class="ic">📷</span>Foto aufnehmen</button>
-          <button type="button" id="btnFile"><span class="ic">📄</span>Datei wählen</button>
-        </div>
-        <input type="file" id="f-cam"  accept="image/*" capture="environment" hidden>
-        <input type="file" id="f-file" accept="application/pdf,image/*" multiple hidden>
-        <div id="refWrap"></div>
-        <div id="analyze-status"></div>
-        <div id="bedarfWrap"></div>
       </div>
       ${inv ? `<div class="field"><label>Beleg bereitstellen
         <button class="info-btn" data-info="senden" aria-label="Warum speichern statt senden?">i</button></label>
@@ -3247,7 +3289,8 @@ function renderDeckung(){
         <p>Noch keine Leistungen erfasst. Füge sie aus dem Katalog hinzu oder lies die Polizze ein.</p>
         <button class="primary" id="katalogBtn">Aus Katalog hinzufügen</button>
       </div>` :
-      leistungen.map(l=> leistungKarte(l)).join('')}
+      leistungen.map(l=> leistungKarte(l)).join('') +
+      `<button type="button" id="katalogBtn" class="addleistung">+ Leistung hinzufügen</button>`}
 
     <div class="grouplabel">Auswertungen</div>
     <div class="statuslist">
@@ -3416,8 +3459,13 @@ async function polizzeEinlesen(file){
       }
       text = teile.join('\n');
     } else {
+      /* Dieselbe Bildaufbereitung wie bei Rechnungen: Graustufen plus
+         Kontrastspreizung – Polizzen sind oft mehrseitige Handyfotos
+         und profitieren davon mindestens genauso stark. Frueher lief
+         hier das rohe Foto direkt in Tesseract, ohne jede Vorstufe. */
       const worker = await getTesseractWorker();
-      text = (await worker.recognize(await fileToDataURL(file))).data.text || '';
+      const quelle = (await bildAufbereiten(file)) || (await fileToDataURL(file));
+      text = (await worker.recognize(quelle)).data.text || '';
     }
   }catch(err){ console.error('Polizze nicht lesbar:', err); }
 
@@ -4197,7 +4245,7 @@ function openVertragSheet(id){
       </div>
       <p class="hint">Die Kündigungsfrist steht in den Bedingungen – bei Sachversicherungen meist
         ein bis drei Monate vor der Hauptfälligkeit.</p>
-      ${(v.art||'') === 'kranken' ? '<p class="hint">Diese Polizze wird auch im Bereich Deckung verwendet.</p>' : ''}
+      ${(v.art||'') === 'kranken' ? '<p class="hint">Diese Polizze wird auch im Bereich Versicherung verwendet.</p>' : ''}
     </div>
     <div class="sheet-foot">
       ${id ? '<button class="danger" id="vDel">Löschen</button>' : ''}
@@ -4315,7 +4363,7 @@ function openAnlassSheet(key){
 
       ${t.fehlend.length ? `<div class="grouplabel">Wäre hier relevant, fehlt aber</div>
         <p class="hint">${t.fehlend.map(k=> k.icon + ' ' + escapeHTML(k.name)).join(' · ')}<br>
-        Falls deine Polizze das abdeckt, ergänze es unter Deckung – sonst rechnet die App ohne.</p>` : ''}
+        Falls deine Polizze das abdeckt, ergänze es unter Versicherung – sonst rechnet die App ohne.</p>` : ''}
 
       <div class="grouplabel">Woran es meistens scheitert</div>
       <ol class="steps">${a.schritte.map(s=> `<li>${escapeHTML(s)}</li>`).join('')}</ol>
@@ -4362,21 +4410,32 @@ function updateChancenZaehler(){
 }
 
 /* ---------- Ansichtswechsel ----------
-   Fuenf echte Tabs (Uebersicht/Rechnungen/Deckung/Mehr + FAB), Vertraege
+   Vier echte Tabs (Uebersicht/Rechnungen/Deckung/Mehr) + eine FAB, die
+   immer "Rechnung anlegen" ist – der haeufigste Fall. Eine Leistung
+   legt man ueber den Button in der Deckung-Seite selbst an. Vertraege
    und Chancen haengen als Unterseiten an "Mehr" – der Tab bleibt dabei
    optisch aktiv, es braucht keinen eigenen Zurueck-Button, weil die
-   Navigation unten immer sichtbar bleibt. */
+   Navigation unten immer sichtbar bleibt.
+
+   Die zuletzt aktive Ansicht wird gemerkt: ein Reload (z. B. durch
+   Pull-to-refresh) soll dort weitermachen, wo man war, statt immer auf
+   die Uebersicht zurueckzuspringen. */
+const VIEWS = ['uebersicht','rechnungen','deckung','vertraege','chancen','mehr'];
 let currentView = 'uebersicht';
+try{
+  const gespeichert = localStorage.getItem('rt_lastView');
+  if(VIEWS.includes(gespeichert)) currentView = gespeichert;
+}catch(e){ /* localStorage nicht verfuegbar – Start bei Uebersicht */ }
+
 function setView(v){
   currentView = v;
+  try{ localStorage.setItem('rt_lastView', v); }catch(e){ /* unkritisch */ }
   document.getElementById('view-uebersicht').hidden = (v !== 'uebersicht');
   document.getElementById('view-rechnungen').hidden = (v !== 'rechnungen');
   document.getElementById('view-deckung').hidden    = (v !== 'deckung');
   document.getElementById('view-vertraege').hidden  = (v !== 'vertraege');
   document.getElementById('view-chancen').hidden    = (v !== 'chancen');
   document.getElementById('view-mehr').hidden       = (v !== 'mehr');
-  document.getElementById('btnAdd').hidden      = (v !== 'rechnungen');
-  document.getElementById('btnLeistung').hidden = (v !== 'deckung');
   const navKey = (v === 'vertraege' || v === 'chancen') ? 'mehr' : v;
   document.querySelectorAll('.mainbtn').forEach(b=>
     b.setAttribute('aria-selected', String(b.dataset.view === navKey)));
@@ -4387,13 +4446,9 @@ function setView(v){
 }
 document.querySelectorAll('.mainbtn').forEach(b=>
   b.addEventListener('click', ()=> setView(b.dataset.view)));
-document.getElementById('btnLeistung').addEventListener('click', ()=>{
-  if(!policy){ toast('Erst Polizze anlegen'); return; }
-  openKatalogSheet();
-});
 
 /* ---------- Start ---------- */
-openDB().then(loadAll).then(handleSharedFiles);
+openDB().then(loadAll).then(()=> setView(currentView)).then(handleSharedFiles);
 
 /* ---------- Service Worker inklusive Update-Hinweis ----------
    Laeuft nur unter https:// oder localhost. Meldet sich ein neuer
